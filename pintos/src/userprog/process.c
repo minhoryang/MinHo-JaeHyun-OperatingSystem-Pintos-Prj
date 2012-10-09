@@ -17,6 +17,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "lib/stdio.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -221,8 +223,27 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  // XXX: Argument passing
+  int argc = 0;
+  char *argv[64];  // 64-> max 128bytes.
+  {
+    char *token, *last;
+    token = strtok_r((char *)file_name, " ", &last);
+    argv[argc] = (char *)malloc(1 * sizeof(char *));
+    strlcpy(argv[argc++], token, strlen(token) + 1);
+    //printf("'%s'\n", argv[argc-1]);
+    while(strlen(last)){
+      //printf("[%d]left\n", strlen(last));
+      token = strtok_r(NULL, " ", &last);
+      argv[argc] = (char *)malloc(1 * sizeof(char *));
+      strlcpy(argv[argc++], token, strlen(token) + 1);
+      //printf("'%s'\n", argv[argc-1]);
+    }
+  }
+  // XXX //
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -304,6 +325,65 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  // XXX: Construct esp
+  {
+	void *now = *esp;
+	{
+	  char **argv_location = (char **)malloc(64 * sizeof(char*));
+	  {
+	    int align_count = 0;
+        { // <argv[] backward>
+          int i = argc;
+          while(i--)
+          {
+			int len = strlen(argv[i]) + 1;
+		    now -= len;
+		    align_count += len;
+		    memcpy(now, argv[i], len);
+		    argv_location[i] = now;
+            //printf("now:%x\n", now);
+          }
+        }
+        // <fill word-align>
+	    align_count = 4 - (align_count % 4);
+	    while(align_count--){
+          now -= sizeof(uint8_t);
+		  memset(now, (int)NULL, sizeof(uint8_t));
+	    }
+	  }
+      { // <argv* backward>
+	    now -= sizeof(char *);
+	    memset(now, (int)NULL, sizeof(char *));
+	    int i = argc;
+	    while(i--)
+	    {
+		  now -= sizeof(char *);
+		  memcpy(now, &(argv_location[i]), sizeof(char *));
+	    }
+	    argv_location[argc] = now;
+	    // <argv**>
+	    now -= sizeof(char *);
+	    memcpy(now, &(argv_location[argc]), sizeof(char *));
+      }
+	  free(argv_location);
+	}
+	{ // <argc>
+      now -= sizeof(int);
+	  memcpy(now, &argc, sizeof(int));
+	}
+	{ // <return funciton*>
+	  now -= sizeof(void (*));
+	  memset(now, (int)NULL, sizeof(void (*)));
+	}
+    hex_dump((int)now, now, *esp - now, true);
+  }
+
+  {
+    while(argc)
+	  free(argv[argc--]);
+  }
+  // XXX //
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
