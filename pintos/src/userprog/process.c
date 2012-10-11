@@ -376,7 +376,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	  now -= sizeof(void (*));
 	  memset(now, (int)NULL, sizeof(void (*)));
 	}
-    hex_dump((int)now, now, *esp - now, true);
+    //hex_dump((int)now, now, *esp - now, true);
+	*esp = now;  // REASON OF SEGFAULT!
   }
 
   {
