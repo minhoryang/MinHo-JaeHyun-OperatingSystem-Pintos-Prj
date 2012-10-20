@@ -209,6 +209,23 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  // XXX : Add child/parent relationship.
+  struct thread *p = thread_current();
+  t->parent = p;
+  sema_down(&(t->child_lock));
+  /*
+  printf("[%s]\nh %p (%p,%p)\nt %p (%p,%p)\n",
+		  p->name,
+		  &((t->childs).head),
+		  (t->childs).head.prev,
+		  (t->childs).head.next,
+		  &((t->childs).tail),
+		  (t->childs).tail.prev,
+		  (t->childs).tail.next);
+		  */
+  sema_up(&(t->child_lock));
+  // XXX
+
   return tid;
 }
 
@@ -293,6 +310,7 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
+
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
@@ -470,6 +488,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+  
+  //XXX : WTF LIST INIT HERE!
+  list_init(&(t->childs));
+  sema_init(&(t->child_lock), 1);
+  //XXX
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

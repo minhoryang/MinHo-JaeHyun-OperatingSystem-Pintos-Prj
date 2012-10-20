@@ -23,6 +23,11 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+// XXX : without Semaphore
+struct list_elem *search_child(struct thread *t, tid_t old);
+bool has_child(struct thread *, tid_t);
+// XXX
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -44,6 +49,8 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  struct thread *p = thread_current();
+  add_child(p, tid);
   return tid;
 }
 
@@ -547,3 +554,54 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (th->pagedir, upage) == NULL
           && pagedir_set_page (th->pagedir, upage, kpage, writable));
 }
+
+// XXX: semaphore
+
+struct list_elem *search_child(struct thread *t, tid_t old)
+{
+	// XXX: DO NOT USE DIRECTLY, NO SEMA IN HERE!
+	// search_child(t, new);
+	struct list_elem *e;
+	for (e = list_begin(&(t->childs));
+		 e != list_end(&(t->childs));
+		 e = list_next(e)){
+		struct child_list *now = list_entry(e, struct child_list, elem);
+		if(now->value == old){
+			return e;
+		}
+	}
+	return NULL;
+}
+
+void add_child(struct thread *t, tid_t new)
+{
+	sema_down(&(t->child_lock));
+	if(!has_child(t, new)){  // double-check.
+		struct child_list *born = (struct child_list *)calloc(1, sizeof(struct child_list));
+		born->value = new;
+		list_push_back(&(t->childs), &(born->elem));
+	}
+	sema_up(&(t->child_lock));
+}
+
+void del_child(struct thread *t, tid_t old)
+{
+	//sema_down(&(t->child_lock));
+	struct list_elem *found = search_child(t, old);
+	if(found){
+		list_remove (found);
+		free(found);
+	}
+	//sema_up(&(t->child_lock));
+}
+
+bool has_child(struct thread *t, tid_t old)
+{
+	bool ret = false;
+	if(search_child(t, old)){
+		ret = true;
+	}
+	return ret;
+}
+
+// XXX: semaphore

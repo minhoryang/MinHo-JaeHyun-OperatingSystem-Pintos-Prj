@@ -74,7 +74,6 @@ syscall_handler (struct intr_frame *f)
 		break;
 	case 1:  // SYS_EXIT
 		syscall_exit(*(int *)argc[0]);
-		thread_exit();
 		break;
 	case 2:  // SYS_EXEC
 		f->eax = syscall_exec(*(const char **)argc[0]);
@@ -121,13 +120,12 @@ void syscall_exit(int status){
 	 * Conventionally, a status of 0 indicates success and nonzero values
 	 * indicate errors. (ref:man29-30)
 	 */
-	// TODO print "$ProcessName$:exit($CODE$)\n"
     struct thread *t = thread_current ();
 	char *wanted, *last;
 	wanted = strtok_r(t->name, " ", &last);
 	printf("%s: exit(%d)\n", wanted, status);
+    del_child(t->parent, t->tid);
 	thread_exit();
-	//shutdown_power_off();
 	return ;
 }
 
@@ -148,7 +146,7 @@ pid_t syscall_exec(const char *file){
 }
 
 int syscall_wait(pid_t pid){
-	return process_wait(pid);
+	return process_wait((tid_t)pid);
 }
 
 int syscall_read(int fd, void *buffer, unsigned size){

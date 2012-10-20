@@ -4,6 +4,10 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+// XXX: semaphore
+#include "threads/synch.h"
+#include "threads/malloc.h"
+// XXX
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -97,6 +101,10 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
+
+	struct thread *parent;
+	struct list childs;
+	struct semaphore child_lock;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
