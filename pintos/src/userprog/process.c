@@ -90,6 +90,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+	int i;
+	for(i=0;i<1000000;i++){
+		timer_sleep(100);
+	}
   return -1;
 }
 
@@ -231,7 +235,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     token = strtok_r((char *)file_name, " ", &last);
     argv[argc] = (char *)malloc(1 * sizeof(char *));
     strlcpy(argv[argc++], token, strlen(token) + 1);
-    //printf("'%s'\n", argv[argc-1]);
     while(strlen(last)){
       //printf("[%d]left\n", strlen(last));
       token = strtok_r(NULL, " ", &last);

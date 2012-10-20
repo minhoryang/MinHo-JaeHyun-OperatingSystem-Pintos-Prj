@@ -8,11 +8,13 @@
 #include <string.h>
 #include "lib/user/syscall.h"
 #include "devices/input.h"
+#include "devices/shutdown.h"
 static void syscall_handler (struct intr_frame *);
 
-//void syscall_halt(void);
+void syscall_halt(void);
 void syscall_exit(int status);
 pid_t syscall_exec(const char *file);
+int syscall_wait(pid_t pid);
 int syscall_read(int fd, void *buffer, unsigned size);
 int syscall_write(int fd, const void *buffer, unsigned size);
 // XXX
@@ -31,16 +33,16 @@ syscall_handler (struct intr_frame *f)
   void *now = f->esp;
   int syscall_number = *(int *)(f->esp);
   int argc_size_table[20] = {  // CHECK syscall-nr.h
-	  0,  // SYS_HALT
-	  1,  // SYS_EXIT
-	  1,  // SYS_EXEC
-	  1,  // SYS_WAIT
+	  0,  // SYS_HALT (*)
+	  1,  // SYS_EXIT (*)
+	  1,  // SYS_EXEC (*)
+	  1,  // SYS_WAIT (*)
 	  2,  // SYS_CREATE
 	  1,  // SYS_REMOVE
 	  1,  // SYS_OPEN
 	  1,  // SYS_FILESIZE
-	  3,  // SYS_READ
-	  3,  // SYS_WRITE
+	  3,  // SYS_READ (*)
+	  3,  // SYS_WRITE (*)
 	  2,  // SYS_SEEK
 	  1,  // SYS_TELL
 	  1,  // SYS_CLOSE
@@ -67,15 +69,18 @@ syscall_handler (struct intr_frame *f)
 	default:
 	case -1:
 		break;
-	//case 0:  // SYS_HALT
-	//	syscall_halt();
-	//	break;
+	case 0:  // SYS_HALT
+		syscall_halt();
+		break;
 	case 1:  // SYS_EXIT
 		syscall_exit(*(int *)argc[0]);
 		thread_exit();
 		break;
 	case 2:  // SYS_EXEC
 		f->eax = syscall_exec(*(const char **)argc[0]);
+		break;
+	case 3:  // SYS_WAIT
+		f->eax = syscall_wait(*(pid_t *)argc[0]);
 		break;
 	case 8:  // SYS_READ
 		f->eax = syscall_read(
@@ -100,13 +105,14 @@ syscall_handler (struct intr_frame *f)
 
 // XXX: syscall functions below!
 //
-// * EDIT WITH 'syscall.h' 'lib/user/syscall.c' 'lib/syscall-nr.h
+// * EDIT WITH 'lib/user/syscall.c' 'lib/syscall-nr.h
 
-//void syscall_halt(void){
-//	return ;
-//}
+void syscall_halt(void){
+	shutdown_power_off();
+	return ;
+}
 
-void syscall_exit(int status UNUSED){
+void syscall_exit(int status){
 	/* Terminates the current user program, returning status to the kernel.
 	 *
 	 * If the process's parent waits for it, this is the status that
@@ -116,10 +122,16 @@ void syscall_exit(int status UNUSED){
 	 * indicate errors. (ref:man29-30)
 	 */
 	// TODO print "$ProcessName$:exit($CODE$)\n"
+    struct thread *t = thread_current ();
+	char *wanted, *last;
+	wanted = strtok_r(t->name, " ", &last);
+	printf("%s: exit(%d)\n", wanted, status);
+	thread_exit();
+	//shutdown_power_off();
 	return ;
 }
 
-pid_t syscall_exec(const char *file UNUSED){
+pid_t syscall_exec(const char *file){
 	/* Runs the executable whose name is given in cmd_line,
 	 * passing any given arguments, and returns the new process's
 	 * program id (pid).
@@ -131,7 +143,12 @@ pid_t syscall_exec(const char *file UNUSED){
 	 * until it knows whether the child process successfully loaded
 	 * its executable. (ref:man29-30)
 	 */
-	return 0;
+	// TODO check bad ptr;
+	return process_execute(file);
+}
+
+int syscall_wait(pid_t pid){
+	return process_wait(pid);
 }
 
 int syscall_read(int fd, void *buffer, unsigned size){
