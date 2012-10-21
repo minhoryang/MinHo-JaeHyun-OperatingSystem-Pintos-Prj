@@ -10,30 +10,36 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 #include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
 void syscall_halt(void);
 void syscall_exit(int status);
-pid_t syscall_exec(const char *file);
-int syscall_wait(pid_t pid);
-int syscall_read(int fd, void *buffer, unsigned size);
-int syscall_write(int fd, const void *buffer, unsigned size);
-// XXX
+	pid_t syscall_exec(const char *file);
+	int syscall_wait(pid_t pid);
+	int syscall_read(int fd, void *buffer, unsigned size);
+	int syscall_write(int fd, const void *buffer, unsigned size);
+	bool is_valid_ptr(const void *usr_ptr);
+	// XXX
 
-void
-syscall_init (void) 
-{
-  intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-}
+	void
+	syscall_init (void) 
+	{
+	  intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+	}
 
-static void
-syscall_handler (struct intr_frame *f)
-{
-  // XXX : EDIT WITH 'syscall.h' 'lib/user/syscall.c' 'lib/syscall-nr.h
-  //printf ("system call!\n");
-  void *now = f->esp;
+	static void
+	syscall_handler (struct intr_frame *f)
+	{
+	  // XXX : EDIT WITH 'syscall.h' 'lib/user/syscall.c' 'lib/syscall-nr.h
+	  //printf ("system call!\n");
+	  void *now = f->esp;
+	  // XXX : Check PTR Range, and bash to syscall_exit(-1);
+	  if(!is_valid_ptr(now))
+		syscall_exit(-1);
   int syscall_number = *(int *)(f->esp);
   int argc_size_table[20] = {  // CHECK syscall-nr.h
 	  0,  // SYS_HALT (*)
@@ -65,6 +71,9 @@ syscall_handler (struct intr_frame *f)
     for(i = 0; i < argc_size; i++){
       now += 4; // sizeof(void *);  // IT WILL USE 4 Bytes. (ref:man38).
       argc[i] = now;
+	  // XXX : Check argument's ptr;
+	  if(!is_valid_ptr(argc[i]))
+		syscall_exit(-1);
 	 // printf("%x\n", now);
     }
   }
@@ -130,52 +139,32 @@ void syscall_exit(int status){
 	printf("%s: exit(%d)\n", wanted, status);
 	// XXX : Delete Child from Parent.
 	struct thread *parent = t->parent;
-	if(parent){
-		// SEARCH It;
-		struct list_elem *e;
-		for (e = list_begin(&(parent->childs));
-			 e != list_end(&(parent->childs));
-			 e = list_next(e)){
-	        //printf("list anything out: %p\n", (void *)e);
-			struct child_list *now = list_entry(e,
-					                            struct child_list,
-												elem);
-			if(now->tid == t->tid)
-				// Unlink Child from Parent;
-				if(e){
-					//free(list_remove(e));
-					list_remove(e);
-					break;
-				}
-		}
-		// XXX : Store return status to parent.
-		t->parent->waited_child_return_value = status;
-		// XXX
-	}
 	// XXX : Wait until parent waiting child.
 	while(!( (t->parent->status == THREAD_BLOCKED)
 				&& (t->parent->waiting_tid == t->tid) )){
-	  bool found = false;
-	  {
-		struct list_elem *e;
-		for (e = list_begin(&(parent->childs));
-			 e != list_end(&(parent->childs));
-			 e = list_next(e)){
-		  struct child_list *now = list_entry(
-				  e, struct child_list, elem);
-		  if(now->tid == t->tid){
-		    found = true;
-		    break;
-		  }
-		}
-	  }
-	  if(found){
-		//printf("UNDEAD! %d %s\n", t->tid, t->name);
 		thread_yield();
-	  }else{
-		break;
-	  }
 	}
+	// SEARCH It;
+	struct list_elem *e;
+	for (e = list_begin(&(parent->childs));
+		 e != list_end(&(parent->childs));
+		 e = list_next(e)){
+	       //printf("list anything out: %p\n", (void *)e);
+		struct child_list *now = list_entry(e,
+				                            struct child_list,
+											elem);
+		if(now->tid == t->tid)
+			// Unlink Child from Parent;
+			if(e){
+				//free(list_remove(e));
+				list_remove(e);
+				break;
+			}
+	}
+	//}
+	// XXX : Store return status to parent.
+	t->parent->waited_child_return_value = status;
+	// XXX
 	// XXX : Wakeup Parent.
     //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
 	sema_up(&(t->parent->sema));
@@ -198,6 +187,8 @@ pid_t syscall_exec(const char *file){
 	 * its executable. (ref:man29-30)
 	 */
 	// TODO check bad ptr; syscall_exit(-1);
+    if(!is_valid_ptr(file))
+	  syscall_exit(-1);
 	return process_execute(file);
 }
 
@@ -260,5 +251,15 @@ int syscall_write(int fd, const void *buffer, unsigned size){
 		ret = i;
 	}
 	return ret;
+}
+
+bool is_valid_ptr(const void *usr_ptr){
+	if(!usr_ptr) return false;
+	if(is_user_vaddr(usr_ptr)){
+		struct thread *cur = thread_current();
+		if(pagedir_get_page(cur->pagedir, usr_ptr))
+			return true;
+	}
+	return false;
 }
 // XXX

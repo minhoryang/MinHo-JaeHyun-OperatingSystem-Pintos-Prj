@@ -64,7 +64,7 @@ process_execute (const char *file_name)
 		//printf("list anything in: %s %p\n", cur->name, &(child->elem));
 	  }
 	}
-    // TODO : Waiting until child fully loaded.  ( start_process() )
+    // XXX : Waiting until child fully loaded.  ( start_process() )
 #ifdef USERPROG
 	struct thread *tc = thread_current();
 	//printf("[%s]SEMADOWN? %d\n",tc->name,tc->sema.value);
@@ -72,6 +72,9 @@ process_execute (const char *file_name)
 	//printf("[%s]SEMADOWN! %d\n",tc->name,tc->sema.value);
 #endif
   }
+  // XXX : Check Successfully Loaded.
+  if(!(thread_current()->is_child_successfully_loaded))
+	  tid = TID_ERROR;
   // XXX
   return tid;
 }
@@ -94,8 +97,8 @@ start_process (void *file_name_)
 
   // TODO : Checking this child grow up successfully,
   //        And Announce to parent.    ( thread_create() )
-#ifdef USERPROG
   struct thread *t = thread_current();
+#ifdef USERPROG
   //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
   sema_up(&(t->parent->sema));
   //printf("[%s/%s]SEMAUP! %d\n", t->parent->name, t->name, t->parent->sema.value);
@@ -104,7 +107,8 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  t->parent->is_child_successfully_loaded = success;
+  if (!success)
     thread_exit ();
 
   /* Start the user process by simulating a return from an
@@ -133,7 +137,6 @@ process_wait (tid_t child_tid)
   struct thread *tc = thread_current();
   if(child_tid == TID_ERROR)
 	return -1;
-  //printf("WELCOME WAIT! %d waits %d.\n", tc->tid, child_tid);
   bool found = false;
   {
     struct list_elem *e;
@@ -154,6 +157,7 @@ process_wait (tid_t child_tid)
   if(!found){
     return -1;
   }
+  //printf("WELCOME WAIT! %d waits %d.\n", tc->tid, child_tid);
   // XXX : Set Waiting that tid.
   tc->waiting_tid = child_tid;
   //printf("WAIT! %d\n", tc->waiting_tid);
@@ -318,7 +322,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file = filesys_open (argv[0]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+	  // XXX : DO NOT USE THIS.
+	  //   ( test: exec-missing )
+      //printf ("load: %s: open failed\n", file_name);
+	  // XXX
       goto done; 
     }
 
