@@ -102,13 +102,29 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+	// XXX
 	struct thread *parent;
 	struct list childs;
-	struct semaphore child_lock;
-
+	struct semaphore lock;
+	// TODO
+	tid_t now_waiting_child;   // 대기타는얘.
+	int waited_child_return_value;   // 건네받은인자.
+	int return_value;
+	// XXX
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+// XXX
+struct child_list{
+	struct list_elem elem;
+	tid_t value;
+};
+void add_child(struct thread *t, tid_t new);
+void del_child(struct thread *, tid_t);
+struct list_elem *search_child(struct thread *t, tid_t old);
+bool has_child(struct thread *, tid_t);
+struct thread *get_thread_by_tid (tid_t tid);
+// XXX
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

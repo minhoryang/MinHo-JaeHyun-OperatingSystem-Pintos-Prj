@@ -23,11 +23,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-// XXX : without Semaphore
-struct list_elem *search_child(struct thread *t, tid_t old);
-bool has_child(struct thread *, tid_t);
-// XXX
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -35,23 +30,38 @@ bool has_child(struct thread *, tid_t);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
-  tid_t tid;
+	char *fn_copy;
+	tid_t tid;
 
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+	/* Make a copy of FILE_NAME.
+	   Otherwise there's a race between the caller and load(). */
+	fn_copy = palloc_get_page (0);
+	if (fn_copy == NULL)
+		return TID_ERROR;
+	strlcpy (fn_copy, file_name, PGSIZE);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
-  struct thread *p = thread_current();
-  add_child(p, tid);
-  return tid;
+	/* Create a new thread to execute FILE_NAME. */
+	tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+	if (tid == TID_ERROR)
+	{
+		palloc_free_page (fn_copy); 
+	}
+	else
+	{
+		struct thread *p = thread_current();
+	// XXX
+	// TODO FIRST
+/*		struct thread *t = get_thread_by_tid (tid);
+		sema_down(&p->lock);
+		if(t-> return_value == -1)
+			tid = TID_ERROR; // 1.
+		while(t->status == THREAD_BLOCKED)
+			thread_unblock (t); // 2.?!?!?
+		if(t-> return_value == -1)
+			process_wait (t->tid); // ??!?!?!
+	}*/
+	// XXX
+	return tid;
 }
 
 /* A thread function that loads a user process and starts it
@@ -75,6 +85,11 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
+  // XXX
+  // TODO FIRST
+  struct thread *t = thread_current();
+  sema_up(&t->parent->lock);
+  // XXX
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -95,13 +110,55 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-	int i;
-	for(i=0;i<1000000;i++){
-		timer_sleep(100);
-	}
+  // XXX : dummy waiting.
+  /*
+  int i;
+  for(i=0;i<1000000;i++){
+    timer_sleep(100);
+  }
   return -1;
+  */
+  // XXX : 1st tried.
+  /*
+	struct thread *t = thread_current();
+	struct list_elem *found = search_child(t, child_tid);
+	if(!found) return -1;
+	//if(in_search_table(child_tid)) return -1;
+	// set(table);
+	while(true)
+	{
+//		sema_down(&(t->child_lock));
+		found = search_child(t, child_tid);
+	//	printf("%p\n", found);
+//		sema_up(&(t->child_lock));
+		if(found)
+		{
+			timer_sleep(100000);
+		}
+		else{
+			// free(table);
+			// return status of dead pid.
+			return -1;
+		}
+	}
+  */
+  int ret = -1;
+  // 1. 예외조건처리 -> -1;
+  //   자식이 없거나, 자식의 tid가 아닌경우.
+  struct thread *t = thread_current();
+  if(!has_child(t, child_tid)) return ret;
+  // 2. 현재 기다리는 pid를 기록.
+  t->now_waiting_child = child_tid;
+  // 3. 그리고 나의 sema를 down 잠.
+  sema_down(&(t->lock)); 
+  // 4. 풀리면 리턴값가져와서 리턴.
+  ret = t->waited_child_return_value;
+  return ret;
+
+  // XXX : 2nd tried.
+  // XXX
 }
 
 /* Free the current process's resources. */
@@ -555,53 +612,3 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (th->pagedir, upage, kpage, writable));
 }
 
-// XXX: semaphore
-
-struct list_elem *search_child(struct thread *t, tid_t old)
-{
-	// XXX: DO NOT USE DIRECTLY, NO SEMA IN HERE!
-	// search_child(t, new);
-	struct list_elem *e;
-	for (e = list_begin(&(t->childs));
-		 e != list_end(&(t->childs));
-		 e = list_next(e)){
-		struct child_list *now = list_entry(e, struct child_list, elem);
-		if(now->value == old){
-			return e;
-		}
-	}
-	return NULL;
-}
-
-void add_child(struct thread *t, tid_t new)
-{
-	sema_down(&(t->child_lock));
-	if(!has_child(t, new)){  // double-check.
-		struct child_list *born = (struct child_list *)calloc(1, sizeof(struct child_list));
-		born->value = new;
-		list_push_back(&(t->childs), &(born->elem));
-	}
-	sema_up(&(t->child_lock));
-}
-
-void del_child(struct thread *t, tid_t old)
-{
-	//sema_down(&(t->child_lock));
-	struct list_elem *found = search_child(t, old);
-	if(found){
-		list_remove (found);
-		free(found);
-	}
-	//sema_up(&(t->child_lock));
-}
-
-bool has_child(struct thread *t, tid_t old)
-{
-	bool ret = false;
-	if(search_child(t, old)){
-		ret = true;
-	}
-	return ret;
-}
-
-// XXX: semaphore

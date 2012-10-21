@@ -9,15 +9,3 @@ void process_exit (void);
 void process_activate (void);
 
 #endif /* userprog/process.h */
-
-// XXX: semaphore
-
-struct child_list{
-	struct list_elem elem;
-	tid_t value;
-};
-
-void add_child(struct thread *, tid_t);
-void del_child(struct thread *, tid_t);
-
-// XXX

@@ -71,6 +71,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+// XXX
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -208,26 +210,81 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  // XXX : 'syscall_exec do something for
 
   // XXX : Add child/parent relationship.
-  struct thread *p = thread_current();
-  t->parent = p;
-  sema_down(&(t->child_lock));
-  /*
-  printf("[%s]\nh %p (%p,%p)\nt %p (%p,%p)\n",
-		  p->name,
-		  &((t->childs).head),
-		  (t->childs).head.prev,
-		  (t->childs).head.next,
-		  &((t->childs).tail),
-		  (t->childs).tail.prev,
-		  (t->childs).tail.next);
-		  */
-  sema_up(&(t->child_lock));
+  {
+    struct thread *p = thread_current();
+    t->parent = p;
+	if(p != initial_thread)
+	  add_child(p, t->tid);
+  }
   // XXX
 
   return tid;
 }
+
+// XXX
+void add_child(struct thread *t, tid_t new)
+{
+	if(!has_child(t, new)){  // double-check.
+		struct child_list *born = (struct child_list *)calloc(1, sizeof(struct child_list));
+		born->value = new;
+		list_push_back(&(t->childs), &(born->elem));
+	}
+}
+
+struct list_elem *search_child(struct thread *t, tid_t old)
+{
+	// search_child(t, new);
+	struct list_elem *e;
+	for (e = list_begin(&(t->childs));
+		 e != list_end(&(t->childs));
+		 e = list_next(e)){
+		struct child_list *now = list_entry(e, struct child_list, elem);
+		if(now->value == old){
+			return e;
+		}
+	}
+	return NULL;
+}
+
+void del_child(struct thread *t, tid_t old)
+{
+	struct list_elem *found = search_child(t, old);
+	if(found){
+		list_remove (found);
+		free(found);
+	}
+}
+
+bool has_child(struct thread *t, tid_t old)
+{
+	bool ret = false;
+	if(search_child(t, old)){
+		ret = true;
+	}
+	return ret;
+}
+
+struct thread *get_thread_by_tid (tid_t tid)
+{
+	struct list_elem *f;
+	struct thread *ret;
+
+	ret = NULL;
+	for (f = list_begin (&all_list); f != list_end (&all_list); f = list_next (f))
+	{
+		ret = list_entry (f, struct thread, allelem);
+		ASSERT (is_thread (ret));
+		if (ret->tid == tid)
+			return ret;
+	}
+
+	return NULL;
+}
+
+// XXX
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -308,7 +365,35 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+  struct thread *cur = thread_current ();
+  // XXX
+  // 1. 자기가 가진 모든 자식을 다 죽기까지 기다려야함.
+  struct list_elem *e;
+  for (e = list_begin(&(cur->childs));
+	   e != list_end(&(cur->childs));
+	   e = list_next(e)){
+	struct child_list *now = list_entry(e, struct child_list, elem);
+	process_wait(now->value);
+  }
+  // 2. 자신을 죽이는 부모가 있을때까지 기다려야 함.
+  if(cur != initial_thread)
+    while(!(cur->parent->status == THREAD_BLOCKED)
+	  	  || !(cur->tid == cur->parent->now_waiting_child)){
+      //=> 부모의 상태가 대기면서 wait이 나일때.
+	  thread_yield();
+    }
+  // 3. 부모의 sema를 up 깨움.
+  if(cur != initial_thread)
+    sema_up(&(cur->parent->lock));
+  // 4. 그리고 부모에게 인자를 넘기고 죽음.
+  if(cur != initial_thread)
+    cur->parent->waited_child_return_value = cur->return_value;
+  // XXX
+
   process_exit ();
+
+  if(cur != initial_thread)
+    del_child(cur->parent, cur->tid);
 #endif
 
 
@@ -491,7 +576,7 @@ init_thread (struct thread *t, const char *name, int priority)
   
   //XXX : WTF LIST INIT HERE!
   list_init(&(t->childs));
-  sema_init(&(t->child_lock), 1);
+  sema_init(&(t->lock), 0);
   //XXX
 }
 

@@ -115,7 +115,7 @@ void syscall_exit(int status){
 	/* Terminates the current user program, returning status to the kernel.
 	 *
 	 * If the process's parent waits for it, this is the status that
-	 * will be returnd.
+	 * will be returned.
 	 *
 	 * Conventionally, a status of 0 indicates success and nonzero values
 	 * indicate errors. (ref:man29-30)
@@ -124,6 +124,9 @@ void syscall_exit(int status){
 	char *wanted, *last;
 	wanted = strtok_r(t->name, " ", &last);
 	printf("%s: exit(%d)\n", wanted, status);
+	// TODO 유일하게 리턴값을 받는곳이 여기임.
+	// 그러니 thread_exit()의 process_exit()가 보낼 수 있도록 준비.
+	t->return_value = status;
     del_child(t->parent, t->tid);
 	thread_exit();
 	return ;
@@ -142,7 +145,14 @@ pid_t syscall_exec(const char *file){
 	 * its executable. (ref:man29-30)
 	 */
 	// TODO check bad ptr;
+	
+	// XXX
+	// TODO
+	// 1. exec 요청 후, 부모 process 는 block시킨다. 
+	// 2. 자식 process가 비정상종료면, 부모 process의 thraed_value가 -1이 되고, 부모 unblock.
+	// 3. if thread_value가 -1(비정상): return -1, else : process_execute(file);
 	return process_execute(file);
+	// XXX
 }
 
 int syscall_wait(pid_t pid){
