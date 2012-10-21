@@ -45,4 +45,9 @@ bool readdir (int fd, char name[READDIR_MAX_LEN + 1]);
 bool isdir (int fd);
 int inumber (int fd);
 
+// XXX : ADD 2 Custom System Call
+int pibonacci (int n);
+int sum_of_four_integers(int a, int b, int c, int d);
+// XXX
+
 #endif /* lib/user/syscall.h */

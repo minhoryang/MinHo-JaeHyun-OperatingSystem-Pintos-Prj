@@ -18,30 +18,33 @@ static void syscall_handler (struct intr_frame *);
 
 void syscall_halt(void);
 void syscall_exit(int status);
-	pid_t syscall_exec(const char *file);
-	int syscall_wait(pid_t pid);
-	int syscall_read(int fd, void *buffer, unsigned size);
-	int syscall_write(int fd, const void *buffer, unsigned size);
-	bool is_valid_ptr(const void *usr_ptr);
-	// XXX
+pid_t syscall_exec(const char *file);
+int syscall_wait(pid_t pid);
+int syscall_read(int fd, void *buffer, unsigned size);
+int syscall_write(int fd, const void *buffer, unsigned size);
+bool is_valid_ptr(const void *usr_ptr);
+// XXX : ADD 2 Custom System Call
+int syscall_pibonacci (int n);
+int syscall_sum_of_four_integers(int a, int b, int c, int d);
+// XXX
 
-	void
-	syscall_init (void) 
-	{
-	  intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-	}
+void
+syscall_init (void) 
+{
+	intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+}
 
-	static void
-	syscall_handler (struct intr_frame *f)
-	{
-	  // XXX : EDIT WITH 'syscall.h' 'lib/user/syscall.c' 'lib/syscall-nr.h
-	  //printf ("system call!\n");
-	  void *now = f->esp;
-	  // XXX : Check PTR Range, and bash to syscall_exit(-1);
-	  if(!is_valid_ptr(now))
-		syscall_exit(-1);
+static void
+syscall_handler (struct intr_frame *f)
+{
+  // XXX : EDIT WITH 'syscall.h' 'lib/user/syscall.c' 'lib/syscall-nr.h
+  //printf ("system call!\n");
+  void *now = f->esp;
+  // XXX : Check PTR Range, and bash to syscall_exit(-1);
+  if(!is_valid_ptr(now))
+    syscall_exit(-1);
   int syscall_number = *(int *)(f->esp);
-  int argc_size_table[20] = {  // CHECK syscall-nr.h
+  int argc_size_table[22] = {  // CHECK syscall-nr.h
 	  0,  // SYS_HALT (*)
 	  1,  // SYS_EXIT (*)
 	  1,  // SYS_EXEC (*)
@@ -61,11 +64,13 @@ void syscall_exit(int status);
 	  1,  // SYS_MKDIR
 	  2,  // SYS_READDIR
 	  1,  // SYS_ISDIR
-	  1  // SYS_INUMBER
+	  1,  // SYS_INUMBER
+	  1,  // SYS_PIBONACCI
+	  4   // SYS_SUM_OF_FOUR_INTEGERS
   };
   int argc_size = argc_size_table[syscall_number];
   //printf("SYSCALL %d SIZE %d\n", syscall_number, argc_size);
-  void *argc[3] = {NULL,};
+  void *argc[4] = {NULL,};
   {
     int i;
     for(i = 0; i < argc_size; i++){
@@ -108,6 +113,17 @@ void syscall_exit(int status);
 				*(const void **)argc[1],
 				*(unsigned *)argc[2]
 		);
+	case 20:  // SYS_PIBONACCI
+		f->eax = syscall_pibonacci(*(int *)argc[0]);
+		break;
+	case 21:  // SYS_SUM_OF_FOUR_INTEGERS
+		f->eax = syscall_sum_of_four_integers(
+				*(int *)argc[0],
+				*(int *)argc[1],
+				*(int *)argc[2],
+				*(int *)argc[3]
+		);
+		break;
 	// case *:
   }
   // printf("SYSCALL_RETURN: %d\n", f->eax);
@@ -261,5 +277,22 @@ bool is_valid_ptr(const void *usr_ptr){
 			return true;
 	}
 	return false;
+}
+// XXX
+
+// TODO : ADD 2 Custom System Call
+int syscall_pibonacci (int n){
+	int i=2, *f = (int*)malloc(sizeof(int)*n);
+	f[0] = 1;
+	f[1] = 1;
+	while(i<n){
+		f[i] = f[i-1]+f[i-2];
+		i++;
+	}
+	return f[i-1];
+}
+int syscall_sum_of_four_integers(int a, int b, int c, int d){
+	printf("%d %d %d %d\n", a, b, c, d);
+	return a + b + c + d;
 }
 // XXX
