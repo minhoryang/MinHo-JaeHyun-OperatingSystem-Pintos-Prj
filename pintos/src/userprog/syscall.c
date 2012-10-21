@@ -9,6 +9,9 @@
 #include "lib/user/syscall.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
+#include "threads/malloc.h"
+#include "userprog/process.h"
+
 static void syscall_handler (struct intr_frame *);
 
 void syscall_halt(void);
@@ -55,7 +58,7 @@ syscall_handler (struct intr_frame *f)
 	  1  // SYS_INUMBER
   };
   int argc_size = argc_size_table[syscall_number];
-  //printf("MINHO SYSCALL %d SIZE %d\n", syscall_number, argc_size);
+  //printf("SYSCALL %d SIZE %d\n", syscall_number, argc_size);
   void *argc[3] = {NULL,};
   {
     int i;
@@ -74,12 +77,12 @@ syscall_handler (struct intr_frame *f)
 		break;
 	case 1:  // SYS_EXIT
 		syscall_exit(*(int *)argc[0]);
-		thread_exit();
 		break;
 	case 2:  // SYS_EXEC
 		f->eax = syscall_exec(*(const char **)argc[0]);
 		break;
 	case 3:  // SYS_WAIT
+		//printf("CALLED SYS_WAIT!\n");
 		f->eax = syscall_wait(*(pid_t *)argc[0]);
 		break;
 	case 8:  // SYS_READ
@@ -121,13 +124,64 @@ void syscall_exit(int status){
 	 * Conventionally, a status of 0 indicates success and nonzero values
 	 * indicate errors. (ref:man29-30)
 	 */
-	// TODO print "$ProcessName$:exit($CODE$)\n"
     struct thread *t = thread_current ();
 	char *wanted, *last;
 	wanted = strtok_r(t->name, " ", &last);
 	printf("%s: exit(%d)\n", wanted, status);
+	// XXX : Delete Child from Parent.
+	struct thread *parent = t->parent;
+	if(parent){
+		// SEARCH It;
+		struct list_elem *e;
+		for (e = list_begin(&(parent->childs));
+			 e != list_end(&(parent->childs));
+			 e = list_next(e)){
+	        //printf("list anything out: %p\n", (void *)e);
+			struct child_list *now = list_entry(e,
+					                            struct child_list,
+												elem);
+			if(now->tid == t->tid)
+				// Unlink Child from Parent;
+				if(e){
+					//free(list_remove(e));
+					list_remove(e);
+					break;
+				}
+		}
+		// XXX : Store return status to parent.
+		t->parent->waited_child_return_value = status;
+		// XXX
+	}
+	// XXX : Wait until parent waiting child.
+	while(!( (t->parent->status == THREAD_BLOCKED)
+				&& (t->parent->waiting_tid == t->tid) )){
+	  bool found = false;
+	  {
+		struct list_elem *e;
+		for (e = list_begin(&(parent->childs));
+			 e != list_end(&(parent->childs));
+			 e = list_next(e)){
+		  struct child_list *now = list_entry(
+				  e, struct child_list, elem);
+		  if(now->tid == t->tid){
+		    found = true;
+		    break;
+		  }
+		}
+	  }
+	  if(found){
+		//printf("UNDEAD! %d %s\n", t->tid, t->name);
+		thread_yield();
+	  }else{
+		break;
+	  }
+	}
+	// XXX : Wakeup Parent.
+    //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
+	sema_up(&(t->parent->sema));
+    //printf("[%s/%s]SEMAUP! %d\n", t->parent->name, t->name, t->parent->sema.value);
+
 	thread_exit();
-	//shutdown_power_off();
 	return ;
 }
 
@@ -136,14 +190,14 @@ pid_t syscall_exec(const char *file){
 	 * passing any given arguments, and returns the new process's
 	 * program id (pid).
 	 *
-	 * Must return pid-1, which otherwise should not be a valid pid,
+	 * Must return pid -1, which otherwise should not be a valid pid,
 	 * if the program cannot load or run for any reason.
 	 *
 	 * Thus, the parent process cannot return from the exec
 	 * until it knows whether the child process successfully loaded
 	 * its executable. (ref:man29-30)
 	 */
-	// TODO check bad ptr;
+	// TODO check bad ptr; syscall_exit(-1);
 	return process_execute(file);
 }
 

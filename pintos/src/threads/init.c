@@ -285,7 +285,12 @@ run_task (char **argv)
   
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG
-  process_wait (process_execute (task));
+  // TODO : DEBUG USAGE
+  int s = process_execute(task);
+  //printf ("PID: %d->%d\n", thread_current()->tid, s);
+  process_wait (s);
+  // process_wait(process_execute(task));
+  // XXX
 #else
   run_test (task);
 #endif

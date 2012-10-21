@@ -44,6 +44,35 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  // XXX : Set Relationship between Parent&Child.
+  else{
+	// XXX
+	struct thread *cur = GetThreadByTid(tid);
+	if(!cur){
+	  //printf("Getting Child Failed at %s\n", thread_current()->name);
+	  return TID_ERROR;
+	}
+	//printf("Add New Children %s to %s\n", cur->name, cur->parent->name);
+	struct child_list *child = calloc(1, sizeof(struct child_list));
+	if(child){
+	  child->child = cur;
+	  child->tid = cur->tid;
+	  if(cur->parent){
+	   	list_push_back(
+		  &((cur->parent)->childs),
+		  &(child->elem));
+		//printf("list anything in: %s %p\n", cur->name, &(child->elem));
+	  }
+	}
+    // TODO : Waiting until child fully loaded.  ( start_process() )
+#ifdef USERPROG
+	struct thread *tc = thread_current();
+	//printf("[%s]SEMADOWN? %d\n",tc->name,tc->sema.value);
+	sema_down(&(tc->sema));
+	//printf("[%s]SEMADOWN! %d\n",tc->name,tc->sema.value);
+#endif
+  }
+  // XXX
   return tid;
 }
 
@@ -62,6 +91,16 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+  // TODO : Checking this child grow up successfully,
+  //        And Announce to parent.    ( thread_create() )
+#ifdef USERPROG
+  struct thread *t = thread_current();
+  //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
+  sema_up(&(t->parent->sema));
+  //printf("[%s/%s]SEMAUP! %d\n", t->parent->name, t->name, t->parent->sema.value);
+#endif
+  // XXX
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,13 +127,43 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-	int i;
-	for(i=0;i<1000000;i++){
-		timer_sleep(100);
+  // XXX : Verify TID
+  struct thread *tc = thread_current();
+  if(child_tid == TID_ERROR)
+	return -1;
+  //printf("WELCOME WAIT! %d waits %d.\n", tc->tid, child_tid);
+  bool found = false;
+  {
+    struct list_elem *e;
+    for (e = list_begin(&(tc->childs));
+         e != list_end(&(tc->childs));
+         e = list_next(e)){
+	  //printf("list anything waitchk: %p\n", (void *)e);
+	  struct child_list *now = list_entry(e,
+			  							  struct child_list,
+                                          elem);
+	  //printf("Checking %d <> %d\n", now->tid, child_tid);
+	  if(now->tid == child_tid){
+		  found = true;
+		  break;
+	  }
 	}
-  return -1;
+  }
+  if(!found){
+    return -1;
+  }
+  // XXX : Set Waiting that tid.
+  tc->waiting_tid = child_tid;
+  //printf("WAIT! %d\n", tc->waiting_tid);
+  // XXX : Lock until child (which wait by parent) awake.
+  //printf("[%s]SEMADOWN? %d\n",tc->name,tc->sema.value);
+  sema_down(&(tc->sema));
+  //printf("[%s]SEMADOWN! %d\n",tc->name,tc->sema.value);
+  // XXX : Get Return Value from child. and return.
+  return tc->waited_child_return_value;
+  // XXX
 }
 
 /* Free the current process's resources. */

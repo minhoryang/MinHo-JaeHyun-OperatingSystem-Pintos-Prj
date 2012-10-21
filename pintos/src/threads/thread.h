@@ -4,6 +4,9 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+// XXX : including semaphore.
+#include "threads/synch.h"
+// XXX
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -18,6 +21,14 @@ enum thread_status
    You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+
+// XXX : Added "struct child_list"
+struct child_list{
+	struct list_elem elem;
+	tid_t tid;
+	struct thread *child;  // get tid by this.
+};
+// XXX
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
@@ -96,11 +107,22 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+	// XXX : Added Relationship between Parent&Child.
+	// XXX : Added Semaphore Lock for process_wait();
+	struct semaphore sema;
+	tid_t waiting_tid;
+	// XXX : Added the variable for storing return value between Parent&Child.
+	int waited_child_return_value;
 #endif
+	struct thread *parent;
+	struct list childs;
+	// XXX -
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+// XXX
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -129,6 +151,9 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
+// XXX : Added GetThreadByTid()
+struct thread *GetThreadByTid(tid_t tid);
+// XXX
 
 int thread_get_priority (void);
 void thread_set_priority (int);
