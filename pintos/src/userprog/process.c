@@ -74,7 +74,7 @@ process_execute (const char *file_name)
   }
   // XXX : Check Successfully Loaded.
   if(!(thread_current()->is_child_successfully_loaded))
-	  tid = TID_ERROR;
+      tid = TID_ERROR;
   // XXX
   return tid;
 }
@@ -318,6 +318,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   // XXX //
 
+  //printf("NOW at %d\n", __LINE__);
   /* Open executable file. */
   file = filesys_open (argv[0]);
   if (file == NULL) 
@@ -329,6 +330,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  //printf("NOW at %d\n", __LINE__);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -342,6 +344,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  //printf("NOW at %d\n", __LINE__);
   /* Read program headers. */
   file_ofset = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -401,10 +404,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
+  //printf("NOW at %d\n", __LINE__);
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
 
+  //printf("NOW at %d\n", __LINE__);
   // XXX: Construct esp
   {
 	void *now = *esp;
@@ -465,6 +470,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
   // XXX //
 
+  //printf("NOW at %d\n", __LINE__);
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 

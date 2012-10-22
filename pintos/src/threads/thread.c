@@ -494,6 +494,7 @@ struct kernel_thread_frame
 #ifdef USERPROG
 	  sema_init(&(t->sema), 0);
 #endif
+      t->is_child_successfully_loaded = true;
 	  // XXX
 	  t->magic = THREAD_MAGIC;
 	  list_push_back (&all_list, &t->allelem);
