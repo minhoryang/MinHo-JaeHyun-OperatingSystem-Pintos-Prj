@@ -113,8 +113,8 @@ struct thread
 	tid_t waiting_tid;
 	// XXX : Added the variable for storing return value between Parent&Child.
 	int waited_child_return_value;
-	bool is_child_successfully_loaded;
 #endif
+	bool is_child_successfully_loaded;
 	struct thread *parent;
 	struct list childs;
 	// XXX -
