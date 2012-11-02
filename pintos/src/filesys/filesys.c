@@ -7,12 +7,14 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 // TODO include lock header.
+#include "threads/synch.h"
+#include "threads/malloc.h"
 // XXX
 
 /* Partition that contains the file system. */
 struct block *fs_device;
 // TODO 
-// struct lock *lock;
+struct lock *lock;
 // XXX
 
 static void do_format (void);
@@ -28,8 +30,8 @@ filesys_init (bool format)
 
   inode_init ();
   // TODO Lock Initialize
-  // lock = (struct lock *)malloc(sizeof(struct lock));
-  // lock_init(lock);
+  lock = (struct lock *)malloc(sizeof(struct lock));
+  lock_init(lock);
   // XXX
   free_map_init ();
 
@@ -55,6 +57,7 @@ bool
 filesys_create (const char *name, off_t initial_size) 
 {
   // TODO acquire_lock();
+  lock_acquire(lock);
   // XXX
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
@@ -66,6 +69,7 @@ filesys_create (const char *name, off_t initial_size)
     free_map_release (inode_sector, 1);
   dir_close (dir);
   // TODO release_lock();
+  lock_release(lock);
   // XXX
 
   return success;
@@ -80,6 +84,7 @@ struct file *
 filesys_open (const char *name)
 {
   // TODO acquire_lock();
+  lock_acquire(lock);
   // XXX
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
@@ -88,6 +93,7 @@ filesys_open (const char *name)
     dir_lookup (dir, name, &inode);
   dir_close (dir);
   // TODO release_lock();
+  lock_release(lock);
   // XXX
 
   return file_open (inode);
@@ -101,11 +107,13 @@ bool
 filesys_remove (const char *name) 
 {
   // TODO acquire_lock();
+  lock_acquire(lock);
   // XXX
   struct dir *dir = dir_open_root ();
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir); 
   // TODO release_lock();
+  lock_release(lock);
   // XXX
 
   return success;
