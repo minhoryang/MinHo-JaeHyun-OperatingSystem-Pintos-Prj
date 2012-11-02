@@ -13,19 +13,30 @@
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "userprog/syscall_exit.h"  // XXX Bridged between this and exception.c
 
 static void syscall_handler (struct intr_frame *);
 
 void syscall_halt(void);
-void syscall_exit(int status);
+//void syscall_exit(int status);
 pid_t syscall_exec(const char *file);
 int syscall_wait(pid_t pid);
 int syscall_read(int fd, void *buffer, unsigned size);
 int syscall_write(int fd, const void *buffer, unsigned size);
 bool is_valid_ptr(const void *usr_ptr);
-// XXX : ADD 2 Custom System Call
+// XXX : ADD 2-1 Custom System Call
 int syscall_pibonacci (int n);
 int syscall_sum_of_four_integers(int a, int b, int c, int d);
+// XXX : ADD 2-2 Filesys handle
+bool syscall_create(const char *file, unsigned initial_size);
+bool syscall_remove(const char *file);
+int syscall_open(const char *file);
+int syscall_filesize(int fd);
+void syscall_seek(int fd, unsigned position);
+unsigned syscall_tell(int fd);
+void syscall_close(int fd);
 // XXX
 
 void
@@ -45,19 +56,19 @@ syscall_handler (struct intr_frame *f)
     syscall_exit(-1);
   int syscall_number = *(int *)(f->esp);
   int argc_size_table[22] = {  // CHECK syscall-nr.h
-	  0,  // SYS_HALT (*)
-	  1,  // SYS_EXIT (*)
-	  1,  // SYS_EXEC (*)
-	  1,  // SYS_WAIT (*)
-	  2,  // SYS_CREATE
-	  1,  // SYS_REMOVE
-	  1,  // SYS_OPEN
-	  1,  // SYS_FILESIZE
-	  3,  // SYS_READ (*)
-	  3,  // SYS_WRITE (*)
-	  2,  // SYS_SEEK
-	  1,  // SYS_TELL
-	  1,  // SYS_CLOSE
+	  0,  // SYS_HALT (*) :0
+	  1,  // SYS_EXIT (*) :1
+	  1,  // SYS_EXEC (*) :2
+	  1,  // SYS_WAIT (*) :3
+	  2,  // SYS_CREATE   :4
+	  1,  // SYS_REMOVE   :5
+	  1,  // SYS_OPEN     :6
+	  1,  // SYS_FILESIZE :7
+	  3,  // SYS_READ (*) :8
+	  3,  // SYS_WRITE (*):9
+	  2,  // SYS_SEEK     :10
+	  1,  // SYS_TELL     :11
+	  1,  // SYS_CLOSE    :12  (proj 2-2)
 	  2,  // SYS_MMAP
 	  1,  // SYS_MUNMAP
 	  1,  // SYS_CHDIR
@@ -99,6 +110,19 @@ syscall_handler (struct intr_frame *f)
 		//printf("CALLED SYS_WAIT!\n");
 		f->eax = syscall_wait(*(pid_t *)argc[0]);
 		break;
+	case 4:  // SYS_CREATE
+		f->eax = syscall_create(*(const char **)argc[0],
+		                        *(unsigned *)argc[1]);
+		break;
+	case 5:  // SYS_REMOVE
+		f->eax = syscall_remove(*(const char **)argc[0]);
+		break;
+	case 6:  // SYS_OPEN
+		f->eax = syscall_open(*(const char **)argc[0]);
+		break;
+	case 7:  // SYS_FILESIZE
+		f->eax = syscall_filesize(*(int *)argc[0]);
+		break;
 	case 8:  // SYS_READ
 		f->eax = syscall_read(
 				*(int *)argc[0],
@@ -113,6 +137,18 @@ syscall_handler (struct intr_frame *f)
 				*(const void **)argc[1],
 				*(unsigned *)argc[2]
 		);
+		break;
+	case 10: // SYS_SEEK
+		syscall_seek(*(int *)argc[0],
+					 *(unsigned *)argc[1]
+		);
+		break;
+	case 11: // SYS_TELL
+		f->eax = syscall_tell(*(int *)argc[0]);
+		break;
+	case 12: // SYS_CLOSE
+		syscall_close(*(int *)argc[0]);
+		break;
 	case 20:  // SYS_PIBONACCI
 		f->eax = syscall_pibonacci(*(int *)argc[0]);
 		break;
@@ -180,11 +216,11 @@ void syscall_exit(int status){
 	//}
 	// XXX : Store return status to parent.
 	t->parent->waited_child_return_value = status;
-	// XXX
 	// XXX : Wakeup Parent.
     //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
 	sema_up(&(t->parent->sema));
     //printf("[%s/%s]SEMAUP! %d\n", t->parent->name, t->name, t->parent->sema.value);
+	// XXX
 
 	thread_exit();
 	return ;
@@ -223,6 +259,8 @@ int syscall_read(int fd, void *buffer, unsigned size){
 	 */
 	int ret = -1;
 	unsigned i;
+    if(!is_valid_ptr(buffer))
+	    syscall_exit(-1);
 	if(fd == 0){
 		// STDIN 0
 		for(i = 0; i < size; i++){
@@ -230,6 +268,18 @@ int syscall_read(int fd, void *buffer, unsigned size){
 			memset((buffer + i * sizeof(uint8_t)), buf, sizeof(uint8_t));
 		}
 		ret = i;
+	}else{
+		// 0. Find fd.
+		struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+		if(!found)
+			return -1;
+		// TODO acquire_lock
+		// deny_write
+		file_deny_write(found->file);
+		ret = file_read(found->file, buffer, size);
+		// allow_write
+		file_allow_write(found->file);
+		// TODO release_lock
 	}
 	return ret;
 }
@@ -260,11 +310,24 @@ int syscall_write(int fd, const void *buffer, unsigned size){
 	 */
 	int ret = -1;
 	unsigned i = 0;
-	if(fd == 1){
+    if(!is_valid_ptr(buffer))
+	    syscall_exit(-1);
+	if(fd == 0){
+		// STDIN 0
+		ret = -1;
+	}else if(fd == 1){
 		// STDOUT 1
 		for(i = 0; (i < size) && *(char *)(buffer + i * sizeof(char)); i++){}
 		putbuf(buffer, i);
 		ret = i;
+	}else{
+		// 0. Find fd.
+		struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+		if(!found)
+			return -1;
+		// TODO acquire_lock
+		ret = file_write(found->file, buffer, size);
+		// TODO release_lock
 	}
 	return ret;
 }
@@ -272,15 +335,14 @@ int syscall_write(int fd, const void *buffer, unsigned size){
 bool is_valid_ptr(const void *usr_ptr){
 	if(!usr_ptr) return false;
 	if(is_user_vaddr(usr_ptr)){
-		struct thread *cur = thread_current();
-		if(pagedir_get_page(cur->pagedir, usr_ptr))
+		if(pagedir_get_page(thread_current()->pagedir, usr_ptr))
 			return true;
 	}
 	return false;
 }
 // XXX
 
-// TODO : ADD 2 Custom System Call
+// XXX : ADD 2 Custom System Call
 int syscall_pibonacci (int n){
 	int i=2, *f = (int*)malloc(sizeof(int)*n);
 	f[0] = 1;
@@ -295,4 +357,85 @@ int syscall_sum_of_four_integers(int a, int b, int c, int d){
 	printf("%d %d %d %d\n", a, b, c, d);
 	return a + b + c + d;
 }
+// XXX 2-2 
+
+bool syscall_create(const char *file, unsigned initial_size)
+{
+    if(!is_valid_ptr(file))
+	    syscall_exit(-1);
+	return filesys_create(file, initial_size);
+}
+
+bool syscall_remove(const char *file)
+{
+	if(!is_valid_ptr(file))
+	    syscall_exit(-1);
+	return filesys_remove(file);
+}
+
+int syscall_open(const char *file)
+{
+	if(!is_valid_ptr(file))
+	    syscall_exit(-1);
+	// 0. Try to open it.
+	struct file *fp = filesys_open(file);
+	if (!fp)
+		return -1;
+	// 1. Get First Empty FD
+	int fd = Get_First_Empty_FD(&(thread_current()->FDs));
+	// 2. Make FD
+	struct fd_list *new_fd = (struct fd_list *)calloc(1, sizeof(struct fd_list));
+	if(!new_fd)
+		return -1;
+	// 3. Assign That FD as got the first empty one.
+	new_fd->fd = fd;
+	new_fd->file = fp;
+	// 4. Insert Ordered this FD at FDs List.
+	list_insert_ordered(
+			&(thread_current()->FDs),
+			&(new_fd->elem),
+			FD_List_Less_Func,
+			NULL);
+	return fd;
+}
+
+int syscall_filesize(int fd)
+{
+	// 0. Find fd.
+	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+	// 1. Call file_length();
+	return file_length(found->file);
+}
+
+void syscall_seek(int fd, unsigned position)
+{
+	// 0. Find fd.
+	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+	// 1. Call file_seek();
+	file_seek(found->file, position);
+	return ;
+}
+
+unsigned syscall_tell(int fd)
+{
+	// 0. Find fd.
+	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+	// 1. Call file_tell();
+	return file_tell(found->file);
+}
+
+void syscall_close(int fd)
+{
+	// 0. Find fd.
+	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+	if(found){
+		// 1. Call file_close();
+		file_close(found->file);
+		// 2. Remove from FDs List
+		list_remove(&(found->elem));
+		// 3. Free FD List
+		free(found);
+	}  // XXX These tests passed by this. (close_twice, close_bad_fd, close_stdin, close_stdout).
+}
+
 // XXX

@@ -6,6 +6,9 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+// TODO : Add Lock Header in here.
+#include "threads/synch.h"
+// XXX
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -37,6 +40,9 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+	// TODO : Add Lock in here.
+	struct lock lock;
+	// XXX
   };
 
 /* Returns the block device sector that contains byte offset POS
@@ -137,6 +143,9 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  // TODO : Init Lock in here.
+  lock_init(&inode->lock);
+  // XXX
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
 }

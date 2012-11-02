@@ -30,6 +30,14 @@ struct child_list{
 };
 // XXX
 
+// TODO : Add "struct fd_list"
+struct fd_list{
+	struct list_elem elem;
+	int fd;
+	struct file *file;
+};
+// XXX
+
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
@@ -117,6 +125,8 @@ struct thread
 	bool is_child_successfully_loaded;
 	struct thread *parent;
 	struct list childs;
+	// TODO : Adding FD List.
+	struct list FDs;
 	// XXX -
 
     /* Owned by thread.c. */
@@ -154,6 +164,12 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 // XXX : Added GetThreadByTid()
 struct thread *GetThreadByTid(tid_t tid);
+// TODO : Add New Functions for FD.
+struct fd_list *Search_FD(struct list *l, int fd);
+int Get_First_Empty_FD(struct list *l);
+bool FD_List_Less_Func (const struct list_elem *a,
+                        const struct list_elem *b,
+                        void *auxi UNUSED);
 // XXX
 
 int thread_get_priority (void);

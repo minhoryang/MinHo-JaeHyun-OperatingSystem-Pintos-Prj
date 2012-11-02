@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/syscall_exit.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -151,14 +152,26 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  ///*TODO 2) User Memory Access! XXX
+  /*TODO 2) User Memory Access! XXX
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
-  //*/
+  */
+  syscall_exit(-1);
+  // XXX 2-2 UserProg.
+  //  Tests: bad-read, bad-write, bad-read2, bad-write2, bad-jump.
+  //
+  //  We tried to check is_valid_ptr() when we handled whole syscalls which were main point of page_fault.
+  //  So we removed commenting sections becaused of useless. 
+  //  But, Those tests tried to use invalid pointer at the inside of userprog.
+  //  Using invalid pointers inside of userprog code is hard to check is_valid_ptr();
+  //  So we decided to ignore those page-fault sections, again.
+  //  At this point, we couldn't find the better idea for handling this.
+  //  If TA checked this, we need your comments. Thanks.
+  // XXX
   //thread_exit();
 }
 

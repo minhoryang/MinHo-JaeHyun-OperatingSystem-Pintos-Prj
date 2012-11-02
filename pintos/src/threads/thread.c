@@ -357,7 +357,50 @@ struct kernel_thread_frame
 
 		return NULL;
 	}
-	
+	// TODO : Add New Search_FD() for searching FD.
+	// find File* in list by FD.
+	struct fd_list *Search_FD(struct list *l, int fd){
+		struct list_elem *e;
+		for (e = list_begin (l); e != list_end (l);
+			 e = list_next(e))
+		{
+			struct fd_list *t = list_entry(e, struct fd_list, elem);
+			if(t->fd == fd)
+				return t;
+		}
+		return NULL;
+	}
+	// TODO : Add New Get_First_Empty_FD()
+	// find Unused FD in list. Start at 2.
+	// FDlist has to be sorted increasingly!
+	// * PRECONDITION : Sorted Increasingly.
+	int Get_First_Empty_FD(struct list *l){
+		struct list_elem *e;
+		int now = 2;
+		for (e = list_begin (l); e!= list_end (l);
+			 e = list_next(e))
+		{
+			struct fd_list *t = list_entry(e, struct fd_list, elem);
+			if(t->fd == now)
+				now++;
+			else
+				break;
+		}
+		return now;
+	}
+	// TODO : Add New FD_List_Less_Func() for Sorting Increasingly!
+	// Returns true if A is less than B,
+	// or false if A is greater than or equal to B.
+	bool FD_List_Less_Func (const struct list_elem *a,
+                            const struct list_elem *b,
+                            void *aux UNUSED){
+		struct fd_list *fd_a = list_entry(a, struct fd_list, elem);
+		struct fd_list *fd_b = list_entry(b, struct fd_list, elem);
+		if(fd_a->fd < fd_b->fd)
+			return true;
+		else
+			return false;
+	}
 	// XXX
 
 	/* Sets the current thread's priority to NEW_PRIORITY. */
@@ -495,6 +538,8 @@ struct kernel_thread_frame
 	  sema_init(&(t->sema), 0);
 #endif
       t->is_child_successfully_loaded = true;
+	  // TODO : Init 'FD List'
+	  list_init(&(t->FDs));
 	  // XXX
 	  t->magic = THREAD_MAGIC;
 	  list_push_back (&all_list, &t->allelem);
