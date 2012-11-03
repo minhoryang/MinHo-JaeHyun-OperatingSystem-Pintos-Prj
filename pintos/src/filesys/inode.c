@@ -6,7 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
-// TODO : Add Lock Header in here.
+// XXX : Added Lock Header in here.
 #include "threads/synch.h"
 // XXX
 
@@ -40,7 +40,7 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-	// TODO : Add Lock in here.
+	// XXX : Added struct Lock in here.
 	struct lock lock;
 	// XXX
   };
@@ -143,7 +143,7 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  // TODO : Init Lock in here.
+  // XXX : Init Lock in here.
   lock_init(&inode->lock);
   // XXX
   block_read (fs_device, inode->sector, &inode->data);

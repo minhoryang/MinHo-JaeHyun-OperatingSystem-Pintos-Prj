@@ -203,7 +203,7 @@ inumber (int fd)
   return syscall1 (SYS_INUMBER, fd);
 }
 
-// TODO : ADD 2 Custom System Call
+// XXX : ADD 2 Custom System Call
 int pibonacci (int n){
   return syscall1 (SYS_PIBONACCI, n);
 }

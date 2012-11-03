@@ -16,11 +16,11 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "userprog/syscall_exit.h"  // XXX Bridged between this and exception.c
+#include "userprog/filesys_type.h"  // XXX Bridged struct file, struct inode
 
 static void syscall_handler (struct intr_frame *);
 
 void syscall_halt(void);
-//void syscall_exit(int status);
 pid_t syscall_exec(const char *file);
 int syscall_wait(pid_t pid);
 int syscall_read(int fd, void *buffer, unsigned size);
@@ -238,7 +238,6 @@ pid_t syscall_exec(const char *file){
 	 * until it knows whether the child process successfully loaded
 	 * its executable. (ref:man29-30)
 	 */
-	// TODO check bad ptr; syscall_exit(-1);
     if(!is_valid_ptr(file))
 	  syscall_exit(-1);
 	return process_execute(file);
@@ -273,13 +272,9 @@ int syscall_read(int fd, void *buffer, unsigned size){
 		struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
 		if(!found)
 			return -1;
-		// TODO acquire_lock
-		// deny_write
-		file_deny_write(found->file);
+		lock_acquire(&(found->file->inode->lock));
 		ret = file_read(found->file, buffer, size);
-		// allow_write
-		file_allow_write(found->file);
-		// TODO release_lock
+		lock_release(&(found->file->inode->lock));
 	}
 	return ret;
 }
@@ -325,9 +320,9 @@ int syscall_write(int fd, const void *buffer, unsigned size){
 		struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
 		if(!found)
 			return -1;
-		// TODO acquire_lock
+		lock_acquire(&(found->file->inode->lock));
 		ret = file_write(found->file, buffer, size);
-		// TODO release_lock
+		lock_release(&(found->file->inode->lock));
 	}
 	return ret;
 }
@@ -404,7 +399,10 @@ int syscall_filesize(int fd)
 	// 0. Find fd.
 	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
 	// 1. Call file_length();
-	return file_length(found->file);
+	lock_acquire(&(found->file->inode->lock));
+	int ret = file_length(found->file);
+	lock_release(&(found->file->inode->lock));
+	return ret;
 }
 
 void syscall_seek(int fd, unsigned position)
@@ -412,7 +410,9 @@ void syscall_seek(int fd, unsigned position)
 	// 0. Find fd.
 	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
 	// 1. Call file_seek();
+	lock_acquire(&(found->file->inode->lock));
 	file_seek(found->file, position);
+	lock_release(&(found->file->inode->lock));
 	return ;
 }
 
@@ -421,7 +421,10 @@ unsigned syscall_tell(int fd)
 	// 0. Find fd.
 	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
 	// 1. Call file_tell();
-	return file_tell(found->file);
+	lock_acquire(&(found->file->inode->lock));
+	unsigned ret = file_tell(found->file);
+	lock_release(&(found->file->inode->lock));
+	return ret;
 }
 
 void syscall_close(int fd)

@@ -95,14 +95,22 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  // TODO : Checking this child grow up successfully,
-  //        And Announce to parent.    ( thread_create() )
+  // XXX : Checking this child grow up successfully,
+  //       And Announce to parent.    ( thread_create() )
   struct thread *t = thread_current();
 #ifdef USERPROG
   //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
   sema_up(&(t->parent->sema));
   //printf("[%s/%s]SEMAUP! %d\n", t->parent->name, t->name, t->parent->sema.value);
 #endif
+  // XXX
+
+  // XXX : Set file_deny_write() in here!
+  // 1. open file(?)
+  //printf("%s(%d): '%s'\n", __func__, __LINE__, file_name);
+  t->file = filesys_open(file_name);
+  // 2. deny write.
+  file_deny_write(t->file);
   // XXX
 
   /* If load failed, quit. */
@@ -176,6 +184,13 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  // XXX : Set file_allow_write() in here!
+  // 1. just allow write from struct thread.
+  file_allow_write(cur->file);
+  // 2. close it.
+  file_close(cur->file);
+  // XXX
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -329,6 +344,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	  // XXX
       goto done; 
     }
+  // XXX : Test (rox-simple, rox-child, rox-multichild.)
+  file_deny_write(file);
 
   //printf("NOW at %d\n", __LINE__);
   /* Read and verify executable header. */

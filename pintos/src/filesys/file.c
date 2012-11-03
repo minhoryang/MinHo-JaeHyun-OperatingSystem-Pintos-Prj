@@ -121,6 +121,7 @@ file_deny_write (struct file *file)
   ASSERT (file != NULL);
   if (!file->deny_write) 
     {
+      //printf("%s(%d) : DENY!\n", __func__, __LINE__);
       file->deny_write = true;
       inode_deny_write (file->inode);
     }
@@ -135,6 +136,7 @@ file_allow_write (struct file *file)
   ASSERT (file != NULL);
   if (file->deny_write) 
     {
+      //printf("%s(%d) : ALLOW!\n", __func__, __LINE__);
       file->deny_write = false;
       inode_allow_write (file->inode);
     }

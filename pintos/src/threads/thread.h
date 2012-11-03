@@ -28,9 +28,7 @@ struct child_list{
 	tid_t tid;
 	struct thread *child;  // get tid by this.
 };
-// XXX
-
-// TODO : Add "struct fd_list"
+// XXX : Add "struct fd_list"
 struct fd_list{
 	struct list_elem elem;
 	int fd;
@@ -125,8 +123,10 @@ struct thread
 	bool is_child_successfully_loaded;
 	struct thread *parent;
 	struct list childs;
-	// TODO : Adding FD List.
+	// XXX : Adding FD List.
 	struct list FDs;
+	// XXX : Adding File for 'rox-simple' test.
+	struct file *file;
 	// XXX -
 
     /* Owned by thread.c. */
@@ -164,7 +164,7 @@ typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 // XXX : Added GetThreadByTid()
 struct thread *GetThreadByTid(tid_t tid);
-// TODO : Add New Functions for FD.
+// XXX : Add New Functions for FD.
 struct fd_list *Search_FD(struct list *l, int fd);
 int Get_First_Empty_FD(struct list *l);
 bool FD_List_Less_Func (const struct list_elem *a,
