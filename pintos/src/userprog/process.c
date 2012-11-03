@@ -65,16 +65,16 @@ process_execute (const char *file_name)
 	  }
 	}
     // XXX : Waiting until child fully loaded.  ( start_process() )
-#ifdef USERPROG
 	struct thread *tc = thread_current();
 	//printf("[%s]SEMADOWN? %d\n",tc->name,tc->sema.value);
 	sema_down(&(tc->sema));
 	//printf("[%s]SEMADOWN! %d\n",tc->name,tc->sema.value);
-#endif
   }
   // XXX : Check Successfully Loaded.
+  //printf("%s(%d): me()->is_child_sucessfully_ret = %d\n", __func__, __LINE__, thread_current()->is_child_successfully_loaded);
   if(!(thread_current()->is_child_successfully_loaded))
       tid = TID_ERROR;
+  //printf("%s(%d): me()->is_child_sucessfully_ret = %d\n", __func__, __LINE__, thread_current()->is_child_successfully_loaded);
   // XXX
   return tid;
 }
@@ -98,11 +98,12 @@ start_process (void *file_name_)
   // XXX : Checking this child grow up successfully,
   //       And Announce to parent.    ( thread_create() )
   struct thread *t = thread_current();
-#ifdef USERPROG
-  //printf("[%s/%s]SEMAUP? %d\n", t->parent->name, t->name, t->parent->sema.value);
+  //printf("%s(%d): t->parent->is_child_sucessfully_ret %d = %d\n", __func__, __LINE__, t->parent->is_child_successfully_loaded, success);
+  t->parent->is_child_successfully_loaded = success;
+  //printf("%s(%d): t->parent->is_child_sucessfully_ret %d = %d\n", __func__, __LINE__, t->parent->is_child_successfully_loaded, success);
+  //printf("[%s/%s]SEMAUPc? %d\n", t->parent->name, t->name, t->parent->sema.value);
   sema_up(&(t->parent->sema));
-  //printf("[%s/%s]SEMAUP! %d\n", t->parent->name, t->name, t->parent->sema.value);
-#endif
+  //printf("[%s/%s]SEMAUPc! %d\n", t->parent->name, t->name, t->parent->sema.value);
   // XXX
 
   // XXX : Set file_deny_write() in here!
@@ -110,12 +111,12 @@ start_process (void *file_name_)
   //printf("%s(%d): '%s'\n", __func__, __LINE__, file_name);
   t->file = filesys_open(file_name);
   // 2. deny write.
-  file_deny_write(t->file);
+  if(t->file)
+    file_deny_write(t->file);
   // XXX
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  t->parent->is_child_successfully_loaded = success;
   if (!success)
     thread_exit ();
 
@@ -186,10 +187,12 @@ process_exit (void)
   uint32_t *pd;
 
   // XXX : Set file_allow_write() in here!
-  // 1. just allow write from struct thread.
-  file_allow_write(cur->file);
-  // 2. close it.
-  file_close(cur->file);
+  if(cur->file){
+    // 1. just allow write from struct thread.
+    file_allow_write(cur->file);
+    // 2. close it.
+    file_close(cur->file);
+  }
   // XXX
 
   /* Destroy the current process's page directory and switch back

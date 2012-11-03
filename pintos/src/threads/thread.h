@@ -115,11 +115,11 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 	// XXX : Added Relationship between Parent&Child.
 	// XXX : Added Semaphore Lock for process_wait();
+#endif
 	struct semaphore sema;
 	tid_t waiting_tid;
 	// XXX : Added the variable for storing return value between Parent&Child.
 	int waited_child_return_value;
-#endif
 	bool is_child_successfully_loaded;
 	struct thread *parent;
 	struct list childs;

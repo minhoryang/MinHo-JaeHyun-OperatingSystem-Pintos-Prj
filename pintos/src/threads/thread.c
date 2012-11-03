@@ -537,7 +537,7 @@ struct kernel_thread_frame
 #ifdef USERPROG
 	  sema_init(&(t->sema), 0);
 #endif
-      t->is_child_successfully_loaded = true;
+      t->is_child_successfully_loaded = false;  // XXX bochs & wait make problem.
 	  // XXX : Init 'FD List'
 	  list_init(&(t->FDs));
 	  // XXX
