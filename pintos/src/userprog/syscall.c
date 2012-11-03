@@ -37,6 +37,7 @@ int syscall_filesize(int fd);
 void syscall_seek(int fd, unsigned position);
 unsigned syscall_tell(int fd);
 void syscall_close(int fd);
+void close_fd_list(struct fd_list *found);
 // XXX
 
 void
@@ -189,6 +190,16 @@ void syscall_exit(int status){
 	char *wanted, *last;
 	wanted = strtok_r(t->name, " ", &last);
 	printf("%s: exit(%d)\n", wanted, status);
+	// XXX : Delete All unremoved FPs.
+	struct list_elem *e;
+	for (e = list_begin(&(t->FDs));
+		 e != list_end(&(t->FDs));
+		 /* XXX inside. */){
+		struct fd_list *now = list_entry(e, struct fd_list, elem);
+		e = list_next(e);
+		// printf("%s(%d) NOW FD_list %d\n", __func__, __LINE__, now->fd);
+		close_fd_list(now);
+	}
 	// XXX : Delete Child from Parent.
 	struct thread *parent = t->parent;
 	// XXX : Wait until parent waiting child.
@@ -197,23 +208,23 @@ void syscall_exit(int status){
 		thread_yield();
 	}
 	// SEARCH It;
-	struct list_elem *e;
 	for (e = list_begin(&(parent->childs));
 		 e != list_end(&(parent->childs));
-		 e = list_next(e)){
+		 /* */){
 	       //printf("list anything out: %p\n", (void *)e);
 		struct child_list *now = list_entry(e,
 				                            struct child_list,
 											elem);
+		e = list_next(e);
 		if(now->tid == t->tid)
 			// Unlink Child from Parent;
-			if(e){
+			if(&(now->elem)){
 				//free(list_remove(e));
-				list_remove(e);
+				list_remove(&(now->elem));
+				free(now);
 				break;
 			}
 	}
-	//}
 	// XXX : Store return status to parent.
 	t->parent->waited_child_return_value = status;
 	// XXX : Wakeup Parent.
@@ -346,7 +357,9 @@ int syscall_pibonacci (int n){
 		f[i] = f[i-1]+f[i-2];
 		i++;
 	}
-	return f[i-1];
+	int ret = f[i-1];
+	free(f);
+	return ret;
 }
 int syscall_sum_of_four_integers(int a, int b, int c, int d){
 	printf("%d %d %d %d\n", a, b, c, d);
@@ -431,6 +444,11 @@ void syscall_close(int fd)
 {
 	// 0. Find fd.
 	struct fd_list *found = Search_FD(&(thread_current()->FDs), fd);
+	close_fd_list(found);
+}
+
+void close_fd_list(struct fd_list *found)
+{
 	if(found){
 		// 1. Call file_close();
 		file_close(found->file);
@@ -440,5 +458,4 @@ void syscall_close(int fd)
 		free(found);
 	}  // XXX These tests passed by this. (close_twice, close_bad_fd, close_stdin, close_stdout).
 }
-
 // XXX
