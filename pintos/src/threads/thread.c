@@ -377,12 +377,20 @@ struct kernel_thread_frame
 	int Get_First_Empty_FD(struct list *l){
 		struct list_elem *e;
 		int now = 2;
+		int MAX_FD = 10;  // XXX Adding [MAX_FD] for <multi-oom> test.
 		for (e = list_begin (l); e!= list_end (l);
 			 e = list_next(e))
 		{
 			struct fd_list *t = list_entry(e, struct fd_list, elem);
 			if(t->fd == now)
-				now++;
+			{
+				if(now < MAX_FD)
+					now++;  // Available for getting new.
+				else{
+					now = -1;
+					break;  // Reached MAX_FD.
+				}
+			}
 			else
 				break;
 		}

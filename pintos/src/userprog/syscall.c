@@ -391,6 +391,8 @@ int syscall_open(const char *file)
 		return -1;
 	// 1. Get First Empty FD
 	int fd = Get_First_Empty_FD(&(thread_current()->FDs));
+	if (fd == -1)  // XXX Reached MAX_FD  (* TEST: [multi-oom])
+		return -1;
 	// 2. Make FD
 	struct fd_list *new_fd = (struct fd_list *)calloc(1, sizeof(struct fd_list));
 	if(!new_fd)
