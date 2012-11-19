@@ -54,6 +54,12 @@ struct kernel_thread_frame
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 	static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
+	// XXX : Project 3. Aging Option.
+#ifndef USERPROG
+    bool thread_prior_aging;
+#endif
+    // XXX
+
 	/* If false (default), use round-robin scheduler.
 	   If true, use multi-level feedback queue scheduler.
 	   Controlled by kernel command-line option "-o mlfqs". */
@@ -137,6 +143,15 @@ struct kernel_thread_frame
 	  /* Enforce preemption. */
 	  if (++thread_ticks >= TIME_SLICE)
 		intr_yield_on_return ();
+
+      // TODO : Thread Wake Up.
+#ifndef USERPROG
+      //thread_wake_up();
+      // TODO : Thread Aging.
+      //if(thread_prior_aging == true)
+      //  thread_aging();
+#endif
+      // XXX
 	}
 
 	/* Prints thread statistics. */

@@ -6,6 +6,10 @@
 #include <stdint.h>
 // XXX : including semaphore.
 #include "threads/synch.h"
+// XXX : Project 3. Aging Option.
+#ifndef USERPROG
+extern bool thread_prior_aging;
+#endif
 // XXX
 
 /* States in a thread's life cycle. */
