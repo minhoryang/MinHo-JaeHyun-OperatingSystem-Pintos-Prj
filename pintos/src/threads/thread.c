@@ -23,7 +23,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 // TODO : BSD 64 Multi Level Ready Queue.
-static struct list ready_list;
+static struct list ready_list[PRI_MAX+1];
 // XXX
 
 /* List of all processes.  Processes are added to this list
@@ -95,11 +95,13 @@ struct kernel_thread_frame
 	void
 	thread_init (void) 
 	{
+	  int i;
 	  ASSERT (intr_get_level () == INTR_OFF);
 
 	  lock_init (&tid_lock);
 	  // TODO : BSD 64 Multi Level Ready Queue.
-	  list_init (&ready_list);
+	  for(i = 0; i < PRI_MAX+1; i++)
+		  list_init (&(ready_list[i]));
 	  // XXX
 	  list_init (&all_list);
 
@@ -271,7 +273,7 @@ struct kernel_thread_frame
 	  ASSERT (t->status == THREAD_BLOCKED);
 	  // TODO : BSD 64 Multi Level Ready Queue.
       // TODO : TEST by [alarm-priority].
-	  list_push_back (&ready_list, &t->elem);
+	  list_push_back (&ready_list[t->priority], &t->elem);
 	  // XXX
 	  t->status = THREAD_READY;
 	  intr_set_level (old_level);
@@ -345,7 +347,7 @@ struct kernel_thread_frame
 	  if (cur != idle_thread) 
 	    // TODO : BSD 64 Multi Level Ready Queue.
         // TODO : TEST by [alarm-priority].
-		list_push_back (&ready_list, &cur->elem);
+		list_push_back (&ready_list[cur->priority], &cur->elem);
 	    // XXX
 	  cur->status = THREAD_READY;
 	  schedule ();
@@ -441,7 +443,12 @@ struct kernel_thread_frame
 	thread_set_priority (int new_priority) 
 	{
 	  // TODO : BSD 64 Multi Level Ready Queue.
-	  thread_current ()->priority = new_priority;
+	  struct thread *cur = thread_current();
+	  // Remove it
+	  list_remove (&cur->elem);
+	  cur->priority = new_priority;
+	  // Insert it
+	  list_push_back (&ready_list[cur->priority], &cur->elem);
 	  // XXX
 	}
 
@@ -616,10 +623,21 @@ struct kernel_thread_frame
 	next_thread_to_run (void) 
 	{
 	  // TODO : BSD 64 Multi Level Ready Queue.
-	  if (list_empty (&ready_list))
-		return idle_thread;
-	  else
-		return list_entry (list_pop_front (&ready_list), struct thread, elem);
+	  int now_priority = PRI_MAX + 1;
+	  struct list *now_ready_list;
+	  while(now_priority--){
+		  now_ready_list = &ready_list[now_priority];
+		  if (list_empty (now_ready_list))
+			  continue;
+		  else
+			  return list_entry (list_pop_front (now_ready_list), struct thread, elem);
+	  }
+	  return idle_thread;
+	  // XXX : Old Method.
+	  //if (list_empty (&ready_list[31]))
+	  //	return idle_thread;
+	  //else
+	  //	return list_entry (list_pop_front (&ready_list[31]), struct thread, elem);
 	  // XXX
 	}
 
@@ -690,7 +708,7 @@ schedule (void)
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
-  //printf("-> %s \n", next->name);
+  //printf("-> %s \n", next->name);  // XXX : GREATEST DEBUG METHOD FOR TRACING THE SCHEDULE!
 }
 
 /* Returns a tid to use for a new thread. */
