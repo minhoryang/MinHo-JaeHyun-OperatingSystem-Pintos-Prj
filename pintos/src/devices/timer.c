@@ -92,8 +92,14 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  // XXX : Old busy-waiting method.
+  if(!TimerCore)
+    while (timer_elapsed (start) < ticks)
+      thread_yield ();
+  // XXX : New [TimerCore] method without busy-waiting.
+  else
+    TimerCore_add(start + ticks);
+  // XXX
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,6 +177,9 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  // XXX : [TimerCore] TADA!
+  TimerCore_check();
+  // XXX
   thread_tick ();
 }
 
@@ -244,3 +253,81 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
+
+// XXX : [TimerCore] Functions.
+void TimerCore_init(void){
+	TimerCore = (struct list *)calloc(1, sizeof(struct list));
+	list_init(TimerCore);
+	return ;
+}
+
+void TimerCore_destroy(void){
+	// Lookin for empty.
+	while(!list_empty(TimerCore)){
+		struct TimerCore *e = list_entry(
+				list_front(TimerCore),
+				struct TimerCore,
+				elem
+		);
+		list_remove(&(e->elem));
+		free(e);
+	}
+	TimerCore = NULL;
+	free(TimerCore);
+	return ;
+}
+
+void TimerCore_check(void){
+	if(!TimerCore)
+		return ;
+	while(!list_empty(TimerCore)){  // XXX : [TESTED] alarm-simultaneous
+		struct TimerCore *e = list_entry(
+				list_front(TimerCore),
+				struct TimerCore,
+				elem
+		);
+		if(e->unblock_when <= timer_ticks()){
+		    enum intr_level old_level = intr_disable();
+			{
+				thread_unblock(e->target);
+				list_remove(&(e->elem));
+			}
+			intr_set_level(old_level);
+		}else
+			break;
+	}
+	return ;
+}
+
+void TimerCore_add(int64_t wanted_when){
+	if(!TimerCore)
+		return ;
+	struct TimerCore *new = (struct TimerCore *)calloc(
+			1, sizeof(struct TimerCore));
+	new->unblock_when = wanted_when;
+	new->target = thread_current();
+
+	enum intr_level old_level = intr_disable ();
+	{
+        list_insert_ordered(TimerCore,
+                            &(new->elem),
+                            TimerCore_list_less_func,
+                            NULL);
+        thread_block();
+	}
+	intr_set_level(old_level);
+	return ;
+}
+
+bool TimerCore_list_less_func(
+		const struct list_elem *a,
+		const struct list_elem *b,
+		void *aux UNUSED){
+	struct TimerCore *tc_a = list_entry(a, struct TimerCore, elem);
+	struct TimerCore *tc_b = list_entry(b, struct TimerCore, elem);
+	if(tc_a->unblock_when < tc_b->unblock_when)
+        return true;
+	else
+		return false;
+}
+// XXX

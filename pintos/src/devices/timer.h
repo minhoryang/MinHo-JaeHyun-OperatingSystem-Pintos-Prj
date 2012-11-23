@@ -3,6 +3,11 @@
 
 #include <round.h>
 #include <stdint.h>
+// XXX : Adding headers for [TimerCore].
+#include "threads/thread.h"
+#include "threads/malloc.h"
+#include "lib/kernel/list.h"
+// XXX
 
 /* Number of timer interrupts per second. */
 #define TIMER_FREQ 100
@@ -26,4 +31,22 @@ void timer_ndelay (int64_t nanoseconds);
 
 void timer_print_stats (void);
 
+// XXX : [TimerCore] Structure Declare.
+struct TimerCore{
+	int64_t unblock_when;
+	struct thread *target;
+	struct list_elem elem;
+};
+// XXX : [TimerCore] Variables.
+struct list *TimerCore;
+// XXX : [TimerCore] Functions.
+void TimerCore_init(void);
+void TimerCore_destroy(void);
+void TimerCore_check(void);
+void TimerCore_add(int64_t);
+bool TimerCore_list_less_func(
+		const struct list_elem *a,
+		const struct list_elem *b,
+		void *aux UNUSED);
+// XXX
 #endif /* devices/timer.h */

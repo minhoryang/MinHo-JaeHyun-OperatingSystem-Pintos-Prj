@@ -129,8 +129,16 @@ main (void)
 
   printf ("Boot complete.\n");
   
+  // XXX : Initialize [TimerCore] inside of Kernel.
+  TimerCore_init();
+  // XXX
+
   /* Run actions specified on kernel command line. */
   run_actions (argv);
+
+  // XXX : Destory [TimerCore] inside of Kernel.
+  TimerCore_destroy();
+  // XXX
 
   /* Finish up. */
   shutdown ();
