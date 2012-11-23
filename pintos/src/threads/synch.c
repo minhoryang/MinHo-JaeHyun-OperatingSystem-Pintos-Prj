@@ -77,8 +77,6 @@ sema_down (struct semaphore *sema)
 			  NULL);
       // list_push_back (&sema->waiters, &thread_current ()->elem);
       // XXX
-      list_push_back (&sema->waiters, &thread_current ()->elem);
-	  // XXX
       thread_block ();
     }
   sema->value--;
