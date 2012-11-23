@@ -265,7 +265,14 @@ struct kernel_thread_frame
 
 	  old_level = intr_disable ();
 	  ASSERT (t->status == THREAD_BLOCKED);
-	  list_push_back (&ready_list, &t->elem);
+      // XXX : TESTED by [alarm-priority].
+	  list_insert_ordered(
+			  &ready_list,
+			  &t->elem,
+			  Priority_List_More_Func,
+			  NULL);
+	  // list_push_back (&ready_list, &t->elem);
+	  // XXX
 	  t->status = THREAD_READY;
 	  intr_set_level (old_level);
 	}
@@ -336,7 +343,14 @@ struct kernel_thread_frame
 
 	  old_level = intr_disable ();
 	  if (cur != idle_thread) 
-		list_push_back (&ready_list, &cur->elem);
+        // XXX : TESTED by [alarm-priority].
+		list_insert_ordered(
+				&ready_list,
+				&cur->elem,
+				Priority_List_More_Func,
+				NULL);
+        // list_push_back (&ready_list, &cur->elem);
+	    // XXX
 	  cur->status = THREAD_READY;
 	  schedule ();
 	  intr_set_level (old_level);
@@ -439,6 +453,20 @@ struct kernel_thread_frame
 	{
 	  return thread_current ()->priority;
 	}
+
+    // XXX : TESTED by [alarm-priority].
+	bool Priority_List_More_Func (
+			const struct list_elem *a,
+			const struct list_elem *b,
+			void *aux UNUSED){
+		struct thread *th_a = list_entry(a, struct thread, elem);
+		struct thread *th_b = list_entry(b, struct thread, elem);
+		if(th_a->priority > th_b->priority)
+			return true;
+		else
+			return false;
+	}
+	// XXX
 
 	/* Sets the current thread's nice value to NICE. */
 	void

@@ -173,12 +173,17 @@ struct fd_list *Search_FD(struct list *l, int fd);
 int Get_First_Empty_FD(struct list *l);
 bool FD_List_Less_Func (const struct list_elem *a,
                         const struct list_elem *b,
-                        void *auxi UNUSED);
+                        void *aux UNUSED);
 // XXX
 
 int thread_get_priority (void);
 void thread_set_priority (int);
-
+// XXX : TESTED by [alarm-priority].
+bool Priority_List_More_Func(
+		const struct list_elem *a,
+		const struct list_elem *b,
+		void *aux UNUSED);
+// XXX
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
