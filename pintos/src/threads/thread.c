@@ -22,7 +22,9 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
+// TODO : BSD 64 Multi Level Ready Queue.
 static struct list ready_list;
+// XXX
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -96,7 +98,9 @@ struct kernel_thread_frame
 	  ASSERT (intr_get_level () == INTR_OFF);
 
 	  lock_init (&tid_lock);
+	  // TODO : BSD 64 Multi Level Ready Queue.
 	  list_init (&ready_list);
+	  // XXX
 	  list_init (&all_list);
 
 	  /* Set up a thread structure for the running thread. */
@@ -265,7 +269,9 @@ struct kernel_thread_frame
 
 	  old_level = intr_disable ();
 	  ASSERT (t->status == THREAD_BLOCKED);
+	  // TODO : BSD 64 Multi Level Ready Queue.
 	  list_push_back (&ready_list, &t->elem);
+	  // XXX
 	  t->status = THREAD_READY;
 	  intr_set_level (old_level);
 	}
@@ -336,7 +342,9 @@ struct kernel_thread_frame
 
 	  old_level = intr_disable ();
 	  if (cur != idle_thread) 
+	    // TODO : BSD 64 Multi Level Ready Queue.
 		list_push_back (&ready_list, &cur->elem);
+	    // XXX
 	  cur->status = THREAD_READY;
 	  schedule ();
 	  intr_set_level (old_level);
@@ -430,7 +438,9 @@ struct kernel_thread_frame
 	void
 	thread_set_priority (int new_priority) 
 	{
+	  // TODO : BSD 64 Multi Level Ready Queue.
 	  thread_current ()->priority = new_priority;
+	  // XXX
 	}
 
 	/* Returns the current thread's priority. */
@@ -589,10 +599,12 @@ struct kernel_thread_frame
 	static struct thread *
 	next_thread_to_run (void) 
 	{
+	  // TODO : BSD 64 Multi Level Ready Queue.
 	  if (list_empty (&ready_list))
 		return idle_thread;
 	  else
 		return list_entry (list_pop_front (&ready_list), struct thread, elem);
+	  // XXX
 	}
 
 	/* Completes a thread switch by activating the new thread's page
