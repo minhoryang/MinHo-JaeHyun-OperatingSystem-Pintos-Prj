@@ -272,8 +272,16 @@ struct kernel_thread_frame
 	  old_level = intr_disable ();
 	  ASSERT (t->status == THREAD_BLOCKED);
 	  // TODO : BSD 64 Multi Level Ready Queue.
+	  if(thread_mlfqs)
+	    list_push_back (&ready_list[t->priority], &t->elem);
       // TODO : TEST by [alarm-priority].
-	  list_push_back (&ready_list[t->priority], &t->elem);
+	  else
+	    list_insert_ordered(
+				&ready_list[PRI_DEFAULT],
+				&t->elem,
+				Priority_List_More_Func,
+				NULL);
+	    // list_push_back (&ready_list[PRI_DEFAULT], &t->elem);
 	  // XXX
 	  t->status = THREAD_READY;
 	  intr_set_level (old_level);
@@ -346,8 +354,18 @@ struct kernel_thread_frame
 	  old_level = intr_disable ();
 	  if (cur != idle_thread) 
 	    // TODO : BSD 64 Multi Level Ready Queue.
+	  {
+		if(thread_mlfqs)
+		  list_push_back (&ready_list[cur->priority], &cur->elem);
         // TODO : TEST by [alarm-priority].
-		list_push_back (&ready_list[cur->priority], &cur->elem);
+		else
+	      list_insert_ordered(
+				  &ready_list[PRI_DEFAULT],
+				  &cur->elem,
+				  Priority_List_More_Func,
+				  NULL);
+		  // list_push_back (&ready_list[PRI_DEFAULT], &cur->elem);
+	  }
 	    // XXX
 	  cur->status = THREAD_READY;
 	  schedule ();
@@ -484,6 +502,8 @@ struct kernel_thread_frame
 	int
 	thread_get_nice (void) 
 	{
+	  // TODO : Recalculate priority with new nice.
+	  //  If less then original, yields.
 	  /* Not yet implemented. */
 	  return 0;
 	}
@@ -623,21 +643,25 @@ struct kernel_thread_frame
 	next_thread_to_run (void) 
 	{
 	  // TODO : BSD 64 Multi Level Ready Queue.
-	  int now_priority = PRI_MAX + 1;
-	  struct list *now_ready_list;
-	  while(now_priority--){
+	  if(thread_mlfqs){
+	    int now_priority = PRI_MAX + 1;
+	    struct list *now_ready_list;
+	    while(now_priority--){
 		  now_ready_list = &ready_list[now_priority];
 		  if (list_empty (now_ready_list))
 			  continue;
 		  else
 			  return list_entry (list_pop_front (now_ready_list), struct thread, elem);
+	    }
+	    return idle_thread;
 	  }
-	  return idle_thread;
 	  // XXX : Old Method.
-	  //if (list_empty (&ready_list[31]))
-	  //	return idle_thread;
-	  //else
-	  //	return list_entry (list_pop_front (&ready_list[31]), struct thread, elem);
+	  else{
+		  if (list_empty (&ready_list[PRI_DEFAULT]))
+			  return idle_thread;
+		  else
+			  return list_entry (list_pop_front (&ready_list[PRI_DEFAULT]), struct thread, elem);
+	  }
 	  // XXX
 	}
 
