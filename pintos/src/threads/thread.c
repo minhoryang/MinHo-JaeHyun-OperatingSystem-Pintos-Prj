@@ -228,6 +228,10 @@ struct kernel_thread_frame
 	  /* Add to run queue. */
 	  thread_unblock (t);
 
+	  // TODO : TESTED [priority-change].
+	  thread_yield();
+	  // XXX
+	  
 	  return tid;
 	}
 
@@ -445,6 +449,9 @@ struct kernel_thread_frame
 	thread_set_priority (int new_priority) 
 	{
 	  thread_current ()->priority = new_priority;
+	  // TODO : TESTED [priority-change].
+	  thread_yield();
+	  // XXX
 	}
 
 	/* Returns the current thread's priority. */
