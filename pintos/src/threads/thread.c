@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -57,6 +58,7 @@ struct kernel_thread_frame
 	// XXX : Project 3. Aging Option.
 #ifndef USERPROG
     bool thread_prior_aging;
+	int64_t aging_tick;
 #endif
     // XXX
 
@@ -144,12 +146,10 @@ struct kernel_thread_frame
 	  if (++thread_ticks >= TIME_SLICE)
 		intr_yield_on_return ();
 
-      // TODO : Thread Wake Up.
+      // XXX : Thread Aging.
 #ifndef USERPROG
-      //thread_wake_up();
-      // TODO : Thread Aging.
-      //if(thread_prior_aging == true)
-      //  thread_aging();
+      if(thread_prior_aging == true)
+        thread_aging();
 #endif
       // XXX
 	}
@@ -228,7 +228,7 @@ struct kernel_thread_frame
 	  /* Add to run queue. */
 	  thread_unblock (t);
 
-	  // TODO : TESTED [priority-change].
+	  // XXX : TESTED [priority-change].
 	  thread_yield();
 	  // XXX
 	  
@@ -449,7 +449,7 @@ struct kernel_thread_frame
 	thread_set_priority (int new_priority) 
 	{
 	  thread_current ()->priority = new_priority;
-	  // TODO : TESTED [priority-change].
+	  // XXX : TESTED [priority-change].
 	  thread_yield();
 	  // XXX
 	}
@@ -697,7 +697,6 @@ schedule (void)
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
-  //printf("-> %s \n", next->name);
 }
 
 /* Returns a tid to use for a new thread. */
@@ -717,3 +716,38 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+// XXX : Thread Aging.
+#ifndef USERPROG
+void thread_aging(void){
+	int first_priority = thread_current()->priority,
+		second_priority = -1;
+	struct list_elem *e;
+	// XXX CONDITION:> IF Second-prioritize Existed,
+	for(e = list_begin(&ready_list);
+		e != list_end(&ready_list);
+		e = list_next(e)){
+	  struct thread *now = list_entry(e, struct thread, elem);
+	  if(now->priority < first_priority){
+		second_priority = now->priority;
+		break;
+	  }
+	}
+	if(second_priority == -1)
+		return ;
+	// XXX ACTIONS:> Increaing AgingTick.
+	aging_tick++;
+	// XXX CONDITION:> IF AgingTick is more than 5000.
+	// Need To Set Rules.
+	if(aging_tick > 5000){
+		// XXX ACTIONS:> All below threads, increase the priority.
+		for(; e != list_end(&ready_list); e = list_next(e))
+		  list_entry(e, struct thread, elem)->priority++;
+		aging_tick = 0;
+	}
+
+	return ;
+}
+#endif
+// XXX

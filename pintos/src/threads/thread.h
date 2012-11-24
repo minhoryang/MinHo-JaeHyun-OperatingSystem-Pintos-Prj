@@ -189,4 +189,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+// XXX : Thread Aging.
+void thread_aging(void);
+// XXX
+
 #endif /* threads/thread.h */
