@@ -749,5 +749,21 @@ void thread_aging(void){
 
 	return ;
 }
+
+// TODO : Condition_Priority_More_Func
+//       TESTED by [priority-condvar].
+bool Condition_Priority_More_Func(
+		const struct list_elem *a,
+		const struct list_elem *b,
+		void *aux UNUSED){
+	struct semaphore_elem *se_a = list_entry(
+			a, struct semaphore_elem, elem);
+	struct semaphore_elem *se_b = list_entry(
+			b, struct semaphore_elem, elem);
+	if(se_a->priority > se_b->priority)
+		return true;
+	else
+		return false;
+}
 #endif
 // XXX

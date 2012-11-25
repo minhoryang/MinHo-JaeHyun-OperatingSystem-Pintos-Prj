@@ -190,7 +190,15 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 // XXX : Thread Aging.
+#ifndef USERPROG
 void thread_aging(void);
+// TODO : Condition_Priority_More_Func
+//       TESTED by [priority-condvar].
+bool Condition_Priority_More_Func(
+		const struct list_elem *a,
+		const struct list_elem *b,
+		void *aux UNUSED);
+#endif
 // XXX
 
 #endif /* threads/thread.h */

@@ -48,4 +48,19 @@ void cond_broadcast (struct condition *, struct lock *);
    reference guide for more information.*/
 #define barrier() asm volatile ("" : : : "memory")
 
+// TODO : MOVED it from synch.c.
+//        TESTED by [priority-condvar].
+
+/* One semaphore in a list. */
+struct semaphore_elem 
+  {
+    struct list_elem elem;              /* List element. */
+    struct semaphore semaphore;         /* This semaphore. */
+	// TODO : TESTED by [priority-condvar].
+	int priority;
+	// XXX
+  };
+
+// XXX
+
 #endif /* threads/synch.h */
