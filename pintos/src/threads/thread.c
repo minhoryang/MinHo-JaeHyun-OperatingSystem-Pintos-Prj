@@ -468,7 +468,7 @@ struct kernel_thread_frame
 			void *aux UNUSED){
 		struct thread *th_a = list_entry(a, struct thread, elem);
 		struct thread *th_b = list_entry(b, struct thread, elem);
-		if(th_a->priority > th_b->priority)
+		if(th_a->priority > th_b->priority)  // TODO : DO NOT INSERT '='
 			return true;
 		else
 			return false;
