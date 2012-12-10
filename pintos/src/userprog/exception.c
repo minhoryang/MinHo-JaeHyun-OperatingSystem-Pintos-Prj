@@ -7,6 +7,7 @@
 #include "userprog/syscall_exit.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "threads/palloc.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -157,6 +158,11 @@ page_fault (struct intr_frame *f)
   // TODO 3. Pintos VM!
 #ifdef VM
   // XXX : Check flags.
+  printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
   switch(user){
 	  case false:
 		  syscall_exit(-1);  // Kernel  // XXX : TESTED by "pt-bad-addr", "pt-grow-bad", "pt-write-code2".
@@ -172,19 +178,26 @@ page_fault (struct intr_frame *f)
 		  }
   }
   // TODO Is Valid Region?
-  if(is_valid_ptr){
+  if(is_valid_ptr(fault_addr)){
 	 //handle_mm_fault();  // TODO 
+     printf("handle_mm_fault();\n");
   }else{
-	  if(f->esp - PG_SIZE < thread_current()->stack_growth_maximum){
+	  if((uint32_t)fault_addr > thread_current()->stack_growth_maximum){
 		  // growth stack.
-		  if(palloc_get_page(PAL_USER))
-			  f->esp = f->esp - PG_SIZE;
-		  else
+		  if(palloc_get_page(PAL_USER | PAL_ZERO)){
+			  f->esp = f->esp - PGSIZE;
+              printf("get page %u %u\n",(uint32_t)fault_addr, thread_current()->stack_growth_maximum);
+		  }else{
+              printf("failed to get page\n");
 			  kill(f);
-	  }else
+          }
+	  }else{
+          printf("not enough to growth %u %u\n",(uint32_t)fault_addr, thread_current()->stack_growth_maximum);
 		  kill(f);
+      }
   }
-  kill(f);
+  // TODO Restart Process.
+  printf("DONE!\n");
 #else
   /* // XXX 2) User Memory Access!
   printf ("Page fault at %p: %s error %s page in %s context.\n",

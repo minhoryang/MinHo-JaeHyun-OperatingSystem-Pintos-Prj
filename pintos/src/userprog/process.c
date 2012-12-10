@@ -420,7 +420,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 			  // TODO : 3. Pintos VM, Saving maximum loaded data bytes for stack growth. 
 #ifdef VM
               else
-                t->stack_growth_maximum = read_bytes + zero_bytes;
+                t->stack_growth_maximum = read_bytes + zero_bytes + mem_page;
 #endif
 			  // XXX
             }
