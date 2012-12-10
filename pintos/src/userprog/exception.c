@@ -5,6 +5,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "userprog/syscall_exit.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -209,3 +211,12 @@ page_fault (struct intr_frame *f)
   // XXX
 }
 
+bool is_valid_ptr(const void *usr_ptr){
+
+	if(!usr_ptr) return false;
+	if(is_user_vaddr(usr_ptr)){
+		if(pagedir_get_page(thread_current()->pagedir, usr_ptr))
+			return true;
+	}
+	return false;
+}

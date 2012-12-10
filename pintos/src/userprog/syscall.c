@@ -10,13 +10,12 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
-#include "threads/vaddr.h"
-#include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "userprog/syscall_exit.h"  // XXX Bridged between this and exception.c
 #include "userprog/filesys_type.h"  // XXX Bridged struct file, struct inode
+#include "userprog/exception.h"  // TODO Moved Is_Valid_Ptr();
 
 static void syscall_handler (struct intr_frame *);
 
@@ -25,7 +24,6 @@ pid_t syscall_exec(const char *file);
 int syscall_wait(pid_t pid);
 int syscall_read(int fd, void *buffer, unsigned size);
 int syscall_write(int fd, const void *buffer, unsigned size);
-bool is_valid_ptr(const void *usr_ptr);
 // XXX : ADD 2-1 Custom System Call
 int syscall_pibonacci (int n);
 int syscall_sum_of_four_integers(int a, int b, int c, int d);
@@ -338,14 +336,6 @@ int syscall_write(int fd, const void *buffer, unsigned size){
 	return ret;
 }
 
-bool is_valid_ptr(const void *usr_ptr){
-	if(!usr_ptr) return false;
-	if(is_user_vaddr(usr_ptr)){
-		if(pagedir_get_page(thread_current()->pagedir, usr_ptr))
-			return true;
-	}
-	return false;
-}
 // XXX
 
 // XXX : ADD 2 Custom System Call
