@@ -131,6 +131,10 @@ struct thread
 	struct list FDs;
 	// XXX : Adding File for 'rox-simple' test.
 	struct file *file;
+	// TODO : 3. Pintos VM, Saving maximum loaded data bytes for stack growth
+#ifdef VM
+	uint32_t stack_growth_maximum;
+#endif
 	// XXX -
 
     /* Owned by thread.c. */
