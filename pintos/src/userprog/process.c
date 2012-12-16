@@ -414,13 +414,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
+			  // TODO : 3. Pintos VM, Saving maximum loaded data bytes for stack growth. 
+#ifndef VM
               if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
                 goto done;
-			  // TODO : 3. Pintos VM, Saving maximum loaded data bytes for stack growth. 
-#ifdef VM
-              else
-                t->stack_growth_maximum = read_bytes + zero_bytes + mem_page;
+#else
+              t->stack_growth_maximum = read_bytes + zero_bytes + mem_page;
 #endif
 			  // XXX
             }
