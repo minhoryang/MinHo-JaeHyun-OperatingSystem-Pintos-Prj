@@ -158,11 +158,6 @@ page_fault (struct intr_frame *f)
   // TODO 3. Pintos VM!
 #ifdef VM
   // XXX : Check flags.
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
   switch(user){
 	  case false:
 		  syscall_exit(-1);  // Kernel  // XXX : TESTED by "pt-bad-addr", "pt-grow-bad", "pt-write-code2".
@@ -178,6 +173,7 @@ page_fault (struct intr_frame *f)
 		  }
   }
   // TODO Is Valid Region?
+/*
   if(is_valid_ptr(fault_addr)){
 	 //handle_mm_fault();  // TODO 
      printf("handle_mm_fault();\n");
@@ -198,6 +194,8 @@ page_fault (struct intr_frame *f)
   }
   // TODO Restart Process.
   printf("DONE!\n");
+*/
+  syscall_exit(-1);
 #else
   /* // XXX 2) User Memory Access!
   printf ("Page fault at %p: %s error %s page in %s context.\n",
