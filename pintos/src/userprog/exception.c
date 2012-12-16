@@ -157,6 +157,11 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   // TODO 3. Pintos VM!
 #ifdef VM
+  printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
   // XXX : Check flags.
   switch(user){
 	  case false:
@@ -173,29 +178,41 @@ page_fault (struct intr_frame *f)
 		  }
   }
   // TODO Is Valid Region?
-/*
-  if(is_valid_ptr(fault_addr)){
-	 //handle_mm_fault();  // TODO 
-     printf("handle_mm_fault();\n");
-  }else{
-	  if((uint32_t)fault_addr > thread_current()->stack_growth_maximum){
-		  // growth stack.
-		  if(palloc_get_page(PAL_USER | PAL_ZERO)){
-			  f->esp = f->esp - PGSIZE;
-              printf("get page %u %u\n",(uint32_t)fault_addr, thread_current()->stack_growth_maximum);
-		  }else{
-              printf("failed to get page\n");
-			  kill(f);
-          }
-	  }else{
-          printf("not enough to growth %u %u\n",(uint32_t)fault_addr, thread_current()->stack_growth_maximum);
-		  kill(f);
-      }
+  // 1. Growable Region인지 판단 by palloc_get_page(USER)
+  {
+    void *growable,
+		 *now = PHYS_BASE - PGSIZE;
+	size_t how_much = (PHYS_BASE - pg_round_down(fault_addr)) / PGSIZE - 1;
+	while(now > pg_round_up(fault_addr)){
+		if(is_valid_ptr(now)){
+			how_much--;
+			now -= PGSIZE;
+		}else
+			break;
+	}
+	printf("HOW MANY? %u\n", how_much);
+    if((growable = palloc_get_multiple(PAL_USER | PAL_ZERO, how_much)) != NULL){
+  // 2-a. 가능=> install_page(PD, uADDR, kADDR, R/W);
+		printf("GROWABLE! esp%p req%p\n", f->esp, fault_addr);
+		if(pagedir_set_page( // ASSIGN USER2KERNEL.
+				thread_current()->pagedir,
+				pg_round_down(fault_addr),  // HELL YEAH!
+				//pg_round_down(f->esp) - PGSIZE,
+				growable /* GOT USER PAGE. */,
+				true /* WRITABLE whatever asking read. */)){
+			printf("LET GROW!\n");
+		}else{
+			printf("FAILED TO ASSIGN : pagedir_set_page.\n");
+			kill(f);
+		}
+	}else{
+  // 2-b. NULL=> KILL
+		printf("NO MORE GROWABLE!\n");
+		kill(f);
+	}
   }
   // TODO Restart Process.
   printf("DONE!\n");
-*/
-  syscall_exit(-1);
 #else
   /* // XXX 2) User Memory Access!
   printf ("Page fault at %p: %s error %s page in %s context.\n",
