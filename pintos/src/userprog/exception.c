@@ -157,13 +157,13 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   // TODO 3. Pintos VM!
 #ifdef VM
-  /*
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  if(false){
+    printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  */
+  }
   // XXX : Check flags.
   switch(user){
 	  case false:
@@ -180,49 +180,50 @@ page_fault (struct intr_frame *f)
 		  }
   }
   // TODO 0 .Is Valid Region?
-  // 1. Growable Region인지 판단 by palloc_get_page(USER)
+  // 1. Growable_Page Region인지 판단 by palloc_get_page(USER)
   {
-    void *growable,
-		 *now = PHYS_BASE - PGSIZE;
     // XXX : 총 몇개의 Page를 만들어 줘야 하나?
-    // XXX : 요청한 주소를 포함하는 PAGE주소에서부터 PHYS_BASE까지!
-	size_t how_much = (PHYS_BASE - pg_round_down(fault_addr)) / PGSIZE - 1;
-	// XXX : 여기에서 이미 만든 PAGE가 있다면 만들필요가 없지.
-	while(now > pg_round_up(fault_addr))
-		if(is_valid_ptr(now)){
-			how_much--;
-			now -= PGSIZE;
+	size_t Page_Needed_Cnt = (PHYS_BASE - pg_round_down(fault_addr)) / PGSIZE;
+	{
+      // PHYS_BASE부터 ~ fault_addr를 포함하는 PAGE주소에서까지!
+	  void *Check_Here = PHYS_BASE - PGSIZE;
+	  while(Check_Here >= pg_round_up(fault_addr))
+		if(is_valid_ptr(Check_Here)){
+			// 이미 이 위치에 만들어진 PAGE가 있다면, 만들필요가 없지.
+			Page_Needed_Cnt--;
+			Check_Here -= PGSIZE;  // 다음위치로!
 		}else
 			break;
-	// printf("HOW MANY? %u\n", how_much);
+	}
+	//printf("HOW MANY? %u\n", Page_Needed_Cnt);
 
-    // XXX : how_much개의 PAGE를 만들어보자! 
-	now = pg_round_down(fault_addr);
-    while(how_much--){
-      // XXX : 만약 PAGE를 얻어올 수 있다면 == Growable하다라고 한다.
-      if((growable = palloc_get_page(PAL_USER | PAL_ZERO)) != NULL){
-        // XXX : 만들어진 PAGE를 User의 PageDir에 넣자.
-        // XXX : 만약 User의 PageDir에 VADDR을 등록해 준다면 == 커널이 알아서 KADDR로 연결해준다고 가정하자. (맞음ㅋ).
+    // XXX : Page_Needed_Cnt개의 PAGE를 만들어보자! 
+	void *New_Page_Here = pg_round_down(fault_addr);
+    while(Page_Needed_Cnt--){
+	  void *Growable_Page;
+      // 만약 PAGE를 얻어올 수 있다면 == Growable_Page하다라고 한다.
+      if((Growable_Page = palloc_get_page(PAL_USER | PAL_ZERO)) != NULL){
+        // 만들어진 PAGE를 User의 PageDir에 넣자.
+        // 만약 User의 PageDir에 VADDR을 등록해 준다면 == 커널이 알아서 KADDR로 연결해준다고 가정하자. (맞음ㅋ).
 		if(pagedir_set_page( // ASSIGN USER2KERNEL.
 				thread_current()->pagedir,
-				now,  // HELL YEAH!
-				//pg_round_down(f->esp) - PGSIZE,
-				growable /* GOT USER PAGE. */,
+				New_Page_Here,  // HELL YEAH!
+				Growable_Page /* GOT USER PAGE. */,
 				true /* WRITABLE whatever asking read. */)){
-			// printf("LET GROW! %u %p\n", how_much, now);
+			//printf("LET GROW! %u %p\n", Page_Needed_Cnt, New_Page_Here);
 		}else{
-			printf("FAILED TO ASSIGN : pagedir_set_page.\n");
+			//printf("FAILED TO ASSIGN : pagedir_set_page.\n");
 			kill(f);
 		}
 	  }else{
   // 2-b. NULL=> KILL
-		printf("NO MORE GROWABLE!\n");
+		// printf("NO MORE Growable_Page!\n");
 		kill(f);
 	  }
-	  now += PGSIZE;
+	  New_Page_Here += PGSIZE;
 	}
   }
-  // TODO Restart Process.
+  // Restart Process.
   // printf("DONE!\n");
 #else
   /* // XXX 2) User Memory Access!
