@@ -180,6 +180,8 @@ page_fault (struct intr_frame *f)
 		  }
   }
   // TODO 0 .Is Valid Region?
+  if(!fault_addr || !is_user_vaddr(fault_addr))
+    syscall_exit(-1);
   // 1. Growable_Page Region인지 판단 by palloc_get_page(USER)
   {
     // XXX : 총 몇개의 Page를 만들어 줘야 하나?
